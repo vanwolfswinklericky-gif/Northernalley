@@ -13,13 +13,13 @@ export function useSyncUser() {
 
     const walletAddress = wallets[0]?.address;
 
-    // We use a try/catch and do not throw, so a backend error doesn't crash the UI
     fetch(`${API_URL}/api/user`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         privyUserId: user.id,
-        email: user.email?.address,
+        // FIX: Cast user to 'any' to bypass the missing type definition
+        email: (user as any).email?.address,
         walletAddress,
       }),
     })
@@ -32,7 +32,6 @@ export function useSyncUser() {
       })
       .then((data) => console.log('✅ User synced to Neon:', data.user))
       .catch((err) => {
-        // Just log the error to the console, don't crash the app
         console.error('❌ Failed to sync user:', err.message);
       });
   }, [user?.id, wallets]);

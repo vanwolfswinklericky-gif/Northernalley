@@ -10,12 +10,14 @@ interface PlanState {
   frequency: 'monthly' | 'weekly';
   email: string | null;
   plan: SubscriptionPlan | null;
+  currency: string; // ADDED
 
   setBasket: (basketId: string) => void;
   setAmount: (amount: number) => void;
   setFrequency: (frequency: 'monthly' | 'weekly') => void;
   setEmail: (email: string) => void;
   setPlan: (plan: SubscriptionPlan) => void;
+  setCurrency: (currency: string) => void; // ADDED
   reset: () => void;
 }
 
@@ -25,6 +27,7 @@ const initialState = {
   frequency: 'monthly' as const,
   email: null,
   plan: null,
+  currency: 'USD', // ADDED
 };
 
 export const usePlanStore = create<PlanState>((set) => ({
@@ -35,5 +38,6 @@ export const usePlanStore = create<PlanState>((set) => ({
   setFrequency: (frequency) => set({ frequency }),
   setEmail: (email) => set({ email }),
   setPlan: (plan) => set({ plan }),
+  setCurrency: (currency) => set({ currency }), // ADDED
   reset: () => set(initialState),
 }));

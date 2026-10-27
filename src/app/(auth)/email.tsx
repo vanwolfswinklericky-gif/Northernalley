@@ -1,3 +1,5 @@
+// src/app/(auth)/email.tsx
+
 import { EmailScreen } from '@/screens/auth/EmailScreen';
 import { useRouter } from 'expo-router';
 
@@ -6,7 +8,6 @@ export default function EmailRoute() {
   return (
     <EmailScreen
       onBack={() => router.back()}
-      onContinue={() => router.push('/(auth)/create-account')}
     />
   );
 }

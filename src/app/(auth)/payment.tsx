@@ -28,7 +28,8 @@ export default function PaymentRoute() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           privyUserId: user.id,
-          email: user.email?.address,
+          // FIX: Cast user to 'any' to bypass the missing type definition
+          email: (user as any).email?.address,
           plan,
           basketId,
           amount,
@@ -38,7 +39,6 @@ export default function PaymentRoute() {
       const data = await res.json();
       
       if (data.url) {
-        // Opens Stripe Checkout in the phone's browser
         await Linking.openURL(data.url);
       } else {
         Alert.alert('Error', data.error || 'Failed to create checkout session');

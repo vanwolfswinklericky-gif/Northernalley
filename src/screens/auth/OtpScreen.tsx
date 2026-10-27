@@ -29,7 +29,8 @@ export function OtpScreen({ onBack }: { onBack: () => void }) {
 
     try {
       // Privy checks if the code is correct.
-      await loginWithCode({ code, email });
+      await loginWithCode({ code, email: email || undefined });
+
       
       // If successful, the user is logged in. Proceed to Plan.
       router.replace('/(auth)/plan');
