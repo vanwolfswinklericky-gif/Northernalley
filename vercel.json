@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/dca",
+      "schedule": "0 9 * * *"
+    }
+  ],
+  "functions": {
+    "api/**/*.js": {
+      "includeFiles": "{node_modules/@hpke/**,node_modules/@privy-io/**}"
+    }
+  }
+}

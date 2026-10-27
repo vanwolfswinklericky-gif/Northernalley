@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "668914638011",
+    "project_id": "northernalley-a65c9",
+    "storage_bucket": "northernalley-a65c9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:668914638011:android:4e0c15f203d94f51a81d9e",
+        "android_client_info": {
+          "package_name": "com.northernalley.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDGAyNJ3A8jAh519JrGUeNF3GugcyGD_Hk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

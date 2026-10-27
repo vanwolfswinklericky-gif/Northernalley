@@ -1,0 +1,7 @@
+
+{
+  "display_name": "Northernalley Server Signer",
+  "public_keys": ["-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEHnw1bmhDXxe3wy0VklgH1D9uiSgB49B3oH0wjlxi4f9XtoU9+Xq+UWnIUGA6BRR2OmxGrfrkHVUxIdUJ4xa8sw==\n-----END PUBLIC KEY-----"],
+  "user_ids": ["did:privy:cmv5htbpi001y0fjtzv3yudv3"],
+  "authorization_threshold": 1
+}
