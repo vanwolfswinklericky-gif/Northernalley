@@ -6,6 +6,7 @@ import { Container } from '@/components/ui/Container';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS, SPACING } from '@/constants/theme';
 import { useBaskets } from '@/hooks/useBaskets';
+import { usePlanStore } from '@/store/planStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -17,8 +18,12 @@ interface BasketsScreenProps {
 }
 
 export function BasketsScreen({ onBack, onContinue, onCreateCustom }: BasketsScreenProps) {
-  const { data, isLoading, isError, refetch } = useBaskets();
+  // FIX: Added 'error' to the destructuring
+  const { data, isLoading, isError, error, refetch } = useBaskets();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  
+  // ADD-ON LOGIC: Check if they bought the extra basket add-on
+  const { addOns } = usePlanStore();
 
   // --- Loading State ---
   if (isLoading) {
@@ -32,7 +37,7 @@ export function BasketsScreen({ onBack, onContinue, onCreateCustom }: BasketsScr
     );
   }
 
-  // --- Error State (No more crashes) ---
+  // --- Error State ---
   if (isError || !data) {
     return (
       <Screen onBack={onBack}>
@@ -40,7 +45,7 @@ export function BasketsScreen({ onBack, onContinue, onCreateCustom }: BasketsScr
           <Ionicons name="alert-circle-outline" size={48} color={COLORS.danger} />
           <Text style={styles.errorTitle}>Could not load baskets</Text>
           <Text style={styles.errorText}>
-            There was a problem connecting to the server.
+            {(error as Error)?.message || 'Please check your connection.'}
           </Text>
           <View style={{ marginTop: 24, width: '100%' }}>
             <Button label="Try Again" onPress={() => refetch()} />
@@ -49,14 +54,15 @@ export function BasketsScreen({ onBack, onContinue, onCreateCustom }: BasketsScr
       </Screen>
     );
   }
-
+  
   // --- Safe Data Extraction ---
   const baskets = data.baskets ?? [];
   const plan = data.plan ?? 'starter';
   const limits = data.limits ?? { total: 1, custom: 0 };
   const usage = data.usage ?? { total: 0 };
   
-  const canCreateCustom = plan === 'pro' || plan === 'premium';
+  // ADD-ON LOGIC: Unlock custom baskets if they are Pro/Premium OR bought the add-on
+  const canCreateCustom = plan === 'pro' || plan === 'premium' || addOns.extraBasket;
   const atLimit = usage.total >= limits.total;
   const limitText = limits.total === Infinity ? 'unlimited' : limits.total;
 

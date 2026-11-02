@@ -10,6 +10,12 @@ const PLAN_PRICES = {
   premium: process.env.STRIPE_PRICE_PREMIUM,
 };
 
+const ADDON_PRICES = {
+  extraBasket: process.env.STRIPE_PRICE_EXTRA_BASKET,
+  weeklyDca: process.env.STRIPE_PRICE_WEEKLY_DCA,
+  prioritySupport: process.env.STRIPE_PRICE_PRIORITY_SUPPORT,
+};
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -17,7 +23,14 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { privyUserId, email, plan = 'starter', basketId = 'top20', amount = 100 } = req.body || {};
+  const { 
+    privyUserId, 
+    email, 
+    plan = 'starter', 
+    basketId = 'top20', 
+    amount = 100,
+    addOns = {} 
+  } = req.body || {};
 
   const priceId = PLAN_PRICES[plan];
 
@@ -34,10 +47,30 @@ export default async function handler(req, res) {
       metadata: { privyUserId },
     });
 
+    // 1. Start with the base plan
+    const line_items = [{ price: priceId, quantity: 1 }];
+    
+    // 2. Track which add-ons are being purchased for the metadata
+    const selectedAddOns = [];
+
+    // 3. Add any selected add-ons
+    if (addOns.extraBasket && ADDON_PRICES.extraBasket) {
+      line_items.push({ price: ADDON_PRICES.extraBasket, quantity: 1 });
+      selectedAddOns.push('extraBasket');
+    }
+    if (addOns.weeklyDca && ADDON_PRICES.weeklyDca) {
+      line_items.push({ price: ADDON_PRICES.weeklyDca, quantity: 1 });
+      selectedAddOns.push('weeklyDca');
+    }
+    if (addOns.prioritySupport && ADDON_PRICES.prioritySupport) {
+      line_items.push({ price: ADDON_PRICES.prioritySupport, quantity: 1 });
+      selectedAddOns.push('prioritySupport');
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: customer.id,
       mode: 'subscription',
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: line_items,
       // DEEP LINK: Redirects back to the app with the custom scheme
       success_url: 'northernalley://(auth)/success',
       cancel_url: 'northernalley://(auth)/failure',
@@ -46,9 +79,14 @@ export default async function handler(req, res) {
         plan,
         basketId,
         dcaAmount: String(amount),
+        addOns: selectedAddOns.join(','), // Save a comma-separated list like "weeklyDca,prioritySupport"
       },
       subscription_data: {
-        metadata: { privyUserId, plan },
+        metadata: { 
+          privyUserId, 
+          plan,
+          addOns: selectedAddOns.join(','),
+        },
       },
     });
 

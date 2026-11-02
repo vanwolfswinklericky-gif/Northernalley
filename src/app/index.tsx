@@ -1,13 +1,12 @@
-﻿// src/app/index.tsx
-import { usePrivy } from '@privy-io/expo';
-import { Redirect } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+﻿import { Button } from '@/components/ui/Button';
+import { Screen } from '@/components/ui/Screen';
+import { useRouter } from 'expo-router';
 
-export default function Index() {
-  const { isReady } = usePrivy();
-
-  if (!isReady) return <View><ActivityIndicator /></View>;
-
-  // If not logged in, send to auth flow
-  return <Redirect href="/(auth)" />;
+export default function Welcome() {
+  const router = useRouter();
+  return (
+    <Screen title="Welcome" subtitle="Your automated crypto investing companion.">
+      <Button label="Get Started" onPress={() => router.push('/(auth)/login')} variant="accent" />
+    </Screen>
+  );
 }

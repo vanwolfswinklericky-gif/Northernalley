@@ -1,7 +1,7 @@
 // api/stripe-webhook.js
 
 import Stripe from 'stripe';
-import pool from './lib/db.js';
+import { pool } from './_lib/db.js';
 
 let _stripe = null;
 function getStripe() {
@@ -71,25 +71,21 @@ export default async function handler(req, res) {
         await handleCheckoutComplete(session);
         break;
       }
-
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
         await handleSubscriptionUpdated(subscription);
         break;
       }
-
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
         await handleSubscriptionDeleted(subscription);
         break;
       }
-
       case 'invoice.payment_failed': {
         const invoice = event.data.object;
         await handlePaymentFailed(invoice);
         break;
       }
-
       default:
         log('info', 'Unhandled event type', { type: event.type });
     }
@@ -111,6 +107,7 @@ export default async function handler(req, res) {
 async function handleCheckoutComplete(session) {
   const privyUserId = session.metadata?.privyUserId;
   const plan = session.metadata?.plan || 'starter';
+  const addOnsString = session.metadata?.addOns || ''; // e.g., "extraBasket,weeklyDca"
 
   if (!privyUserId) {
     log('warn', 'Checkout session missing privyUserId in metadata', {
@@ -122,6 +119,7 @@ async function handleCheckoutComplete(session) {
   log('info', 'Processing new subscription', {
     privyUserId,
     plan,
+    addOns: addOnsString,
     stripeCustomerId: session.customer,
     stripeSubscriptionId: session.subscription,
   });
@@ -134,7 +132,6 @@ async function handleCheckoutComplete(session) {
 
   let userId;
   if (userResult.rows.length === 0) {
-    // Create the user record if it doesn't exist
     const inserted = await pool.query(
       `INSERT INTO users (privy_user_id, email)
        VALUES ($1, $2)
@@ -151,19 +148,20 @@ async function handleCheckoutComplete(session) {
   const periodEnd = new Date();
   periodEnd.setDate(periodEnd.getDate() + 30);
 
-  // Upsert the subscription
+  // Upsert the subscription AND save the add-ons
   await pool.query(
     `INSERT INTO subscriptions (
-      user_id, plan, status,
-      stripe_customer_id, stripe_subscription_id,
-      current_period_end
+      user_id, plan, status, 
+      stripe_customer_id, stripe_subscription_id, 
+      current_period_end, add_ons
     )
-     VALUES ($1, $2, 'active', $3, $4, $5)
+     VALUES ($1, $2, 'active', $3, $4, $5, $6)
      ON CONFLICT (stripe_subscription_id)
      DO UPDATE SET
        plan = EXCLUDED.plan,
        status = 'active',
        current_period_end = EXCLUDED.current_period_end,
+       add_ons = EXCLUDED.add_ons,
        updated_at = NOW()`,
     [
       userId,
@@ -171,12 +169,14 @@ async function handleCheckoutComplete(session) {
       session.customer,
       session.subscription,
       periodEnd,
+      addOnsString, // Save the comma-separated string
     ]
   );
 
   log('info', 'Subscription activated', {
     userId,
     plan,
+    addOns: addOnsString,
     periodEnd: periodEnd.toISOString(),
   });
 }
@@ -186,15 +186,17 @@ async function handleCheckoutComplete(session) {
  */
 async function handleSubscriptionUpdated(subscription) {
   const periodEnd = new Date(subscription.current_period_end * 1000);
+  const addOnsString = subscription.metadata?.addOns || '';
 
   const result = await pool.query(
     `UPDATE subscriptions
      SET status = $1,
          current_period_end = $2,
+         add_ons = $3,
          updated_at = NOW()
-     WHERE stripe_subscription_id = $3
+     WHERE stripe_subscription_id = $4
      RETURNING user_id, plan`,
-    [subscription.status, periodEnd, subscription.id]
+    [subscription.status, periodEnd, addOnsString, subscription.id]
   );
 
   if (result.rows.length === 0) {
@@ -208,6 +210,7 @@ async function handleSubscriptionUpdated(subscription) {
     stripeSubscriptionId: subscription.id,
     status: subscription.status,
     periodEnd: periodEnd.toISOString(),
+    addOns: addOnsString,
     userId: result.rows[0].user_id,
   });
 }

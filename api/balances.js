@@ -1,5 +1,5 @@
 // api/balances.js
-import pool from './_lib/db.js';
+import { pool } from './_lib/db.js';
 
 const COIN_IDS = {
   ETH: 'ethereum',

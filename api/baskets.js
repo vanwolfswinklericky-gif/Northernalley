@@ -1,4 +1,5 @@
-﻿import pool from './_lib/db.js';
+// api/baskets.js
+import { pool } from './_lib/db.js';
 import { canAddBasket, PLAN_LIMITS } from './_lib/plan-limits.js';
 
 export default async function handler(req, res) {
@@ -16,7 +17,11 @@ export default async function handler(req, res) {
   try {
     // 1. Look up the user and their plan
     const userResult = await pool.query(
-      \SELECT u.id, s.plan \n       FROM users u \n       LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active' \n       WHERE u.privy_user_id = \ \n       ORDER BY s.created_at DESC LIMIT 1\,
+      `SELECT u.id, s.plan 
+       FROM users u 
+       LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active' 
+       WHERE u.privy_user_id = $1 
+       ORDER BY s.created_at DESC LIMIT 1`,
       [privyUserId]
     );
 
@@ -30,7 +35,10 @@ export default async function handler(req, res) {
     // 2. GET: list all available baskets + user's usage
     if (req.method === 'GET') {
       const allBaskets = await pool.query(
-        \SELECT id, slug, name, description, type, coins \n         FROM baskets \n         WHERE type = 'prebuilt' OR owner_id = \ \n         ORDER BY type DESC, created_at ASC\,
+        `SELECT id, slug, name, description, type, coins 
+         FROM baskets 
+         WHERE type = 'prebuilt' OR owner_id = $1 
+         ORDER BY type DESC, created_at ASC`,
         [userId]
       );
 
@@ -61,7 +69,7 @@ export default async function handler(req, res) {
       }
 
       const countResult = await pool.query(
-        \SELECT COUNT(*)::int AS count FROM baskets WHERE owner_id = \\,
+        `SELECT COUNT(*)::int AS count FROM baskets WHERE owner_id = $1`,
         [userId]
       );
       const currentCount = countResult.rows[0].count;
@@ -72,7 +80,9 @@ export default async function handler(req, res) {
       }
 
       const inserted = await pool.query(
-        \INSERT INTO baskets (name, description, type, owner_id, coins) \n         VALUES (\, \, 'custom', \, \) \n         RETURNING id, name, description, type, coins\,
+        `INSERT INTO baskets (name, description, type, owner_id, coins) 
+         VALUES ($1, $2, 'custom', $3, $4) 
+         RETURNING id, name, description, type, coins`,
         [name, 'Custom basket', userId, JSON.stringify(coins)]
       );
 
@@ -85,7 +95,9 @@ export default async function handler(req, res) {
       if (!id) return res.status(400).json({ error: 'basket id is required' });
 
       const result = await pool.query(
-        \DELETE FROM baskets \n         WHERE id = \ AND owner_id = \ AND type = 'custom' \n         RETURNING id\,
+        `DELETE FROM baskets 
+         WHERE id = $1 AND owner_id = $2 AND type = 'custom' 
+         RETURNING id`,
         [id, userId]
       );
 
@@ -101,4 +113,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: err.message });
   }
 }
-

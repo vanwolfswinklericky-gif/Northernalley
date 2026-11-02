@@ -5,9 +5,9 @@ import { Container } from '@/components/ui/Container';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS, SPACING } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { useEmbeddedEthereumWallet, usePrivy, useSessionSigners } from '@privy-io/expo';
-import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEmbeddedEthereumWallet, useSessionSigners, usePrivy } from '@privy-io/expo';
+import { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 
 interface ProvisionSignerScreenProps {
   onBack: () => void;
@@ -15,28 +15,40 @@ interface ProvisionSignerScreenProps {
 }
 
 export function ProvisionSignerScreen({ onBack, onSuccess }: ProvisionSignerScreenProps) {
-  const { user, isReady } = usePrivy();
-  const { wallets } = useEmbeddedEthereumWallet();
-  
+  const { isReady } = usePrivy();
+  const { wallets, create } = useEmbeddedEthereumWallet(); // Get the 'create' function
   const { addSessionSigners } = useSessionSigners();
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // FIX: Changed wallet_index to walletIndex
-  const walletToDelegate = wallets.find((wallet) => wallet.walletIndex === 0);
-  const isAlreadyDelegated = (walletToDelegate as any)?.delegated === true;
+  const wallet = wallets[0];
+
+  // Manually create the wallet if it doesn't exist
+  useEffect(() => {
+    if (isReady && !wallet && !loading) {
+      setLoading(true);
+      create().catch((err) => {
+        console.error('Wallet creation failed:', err);
+        setError('Failed to create wallet. Please try again.');
+      }).finally(() => {
+        setLoading(false);
+      });
+    }
+  }, [isReady, wallet, create, loading]);
 
   const handleDelegate = async () => {
-    if (!walletToDelegate || !isReady) return;
+    if (!wallet) {
+      setError('Wallet is still loading. Please wait a moment and try again.');
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
       await addSessionSigners({
-        address: walletToDelegate.address,
-        // FIX: Cast to any to bypass Privy's strict TypeScript definitions for signers
+        address: wallet.address,
         signers: [
           {
             signer_id: process.env.EXPO_PUBLIC_PRIVY_KEY_QUORUM_ID || process.env.EXPO_PUBLIC_PRIVY_POLICY_ID,
@@ -57,6 +69,18 @@ export function ProvisionSignerScreen({ onBack, onSuccess }: ProvisionSignerScre
     }
   };
 
+  // If Privy is still initializing, or we are creating the wallet
+  if (!isReady || !wallet) {
+    return (
+      <Screen onBack={onBack}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.accent} />
+          <Text style={styles.loadingText}>Creating your secure wallet...</Text>
+        </View>
+      </Screen>
+    );
+  }
+
   return (
     <Screen
       onBack={onBack}
@@ -66,18 +90,11 @@ export function ProvisionSignerScreen({ onBack, onSuccess }: ProvisionSignerScre
       footer={
         <View style={styles.footer}>
           <Button
-            label={isAlreadyDelegated ? 'Already Enabled' : 'Enable Automatic Investing'}
+            label="Enable Automatic Investing"
             variant="accent"
             loading={loading}
-            disabled={!isReady || !walletToDelegate || isAlreadyDelegated}
             onPress={handleDelegate}
           />
-          {isAlreadyDelegated && (
-            <View style={styles.successRow}>
-              <Ionicons name="checkmark-circle" size={16} color={COLORS.up} />
-              <Text style={styles.successText}>Your wallet is already delegated</Text>
-            </View>
-          )}
         </View>
       }
     >
@@ -85,9 +102,7 @@ export function ProvisionSignerScreen({ onBack, onSuccess }: ProvisionSignerScre
         <View style={styles.iconWrap}>
           <Ionicons name="shield-checkmark-outline" size={32} color={COLORS.accent} />
         </View>
-
         <Text style={styles.heading}>What you're approving</Text>
-
         <View style={styles.bulletList}>
           <View style={styles.bullet}>
             <Ionicons name="checkmark-circle" size={18} color={COLORS.accent} />
@@ -117,6 +132,16 @@ export function ProvisionSignerScreen({ onBack, onSuccess }: ProvisionSignerScre
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: COLORS.t2,
+  },
   footer: { paddingBottom: 40, gap: 12 },
   card: { marginBottom: 16 },
   iconWrap: {
@@ -125,16 +150,11 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     alignSelf: 'center', marginBottom: SPACING.s3,
   },
-  heading: {
-    fontSize: 17, fontWeight: '600', color: COLORS.t1,
-    marginBottom: SPACING.s3, textAlign: 'center',
-  },
+  heading: { fontSize: 17, fontWeight: '600', color: COLORS.t1, marginBottom: SPACING.s3, textAlign: 'center' },
   bulletList: { gap: 12 },
   bullet: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   bulletText: { flex: 1, fontSize: 14, color: COLORS.t1, lineHeight: 20 },
   errorCard: { marginBottom: 16 },
   errorRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   errorText: { flex: 1, fontSize: 14, color: COLORS.danger, lineHeight: 20 },
-  successRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  successText: { fontSize: 13, color: COLORS.up, fontWeight: '500' },
 });

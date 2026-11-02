@@ -12,13 +12,14 @@ export default function PlanRoute() {
       onBack={() => router.back()}
       onContinue={(plan) => {
         setPlan(plan);
+        // Plan → Provision Signer → Baskets → Create Passcode → Dashboard
         router.push('/(auth)/provision-signer');
       }}
       onSkip={() => {
-        // If they skip, give them the starter plan temporarily
-        // and send them to the dashboard.
+        // "Skip" means: default to starter plan, but still complete wallet setup.
+        // We cannot jump straight to (app) because the wallet guard would block it.
         setPlan('starter');
-        router.replace('/(app)/(tabs)/dashboard');
+        router.push('/(auth)/provision-signer');
       }}
     />
   );

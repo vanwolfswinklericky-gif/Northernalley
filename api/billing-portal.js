@@ -1,5 +1,5 @@
-﻿import Stripe from 'stripe';
-import pool from './_lib/db.js';
+import Stripe from 'stripe';
+import { pool } from './_lib/db.js';
 
 let _stripe = null;
 function getStripe() {

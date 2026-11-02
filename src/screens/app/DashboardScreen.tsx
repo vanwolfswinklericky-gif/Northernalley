@@ -1,5 +1,6 @@
 // src/screens/app/DashboardScreen.tsx
 
+import { Button } from '@/components/ui/Button';
 import { CoinBadge } from '@/components/ui/CoinBadge';
 import { Container } from '@/components/ui/Container';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -14,6 +15,7 @@ import { useBalances } from '@/hooks/useBalances';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePlanStore } from '@/store/planStore';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface DashboardScreenProps {
@@ -24,13 +26,25 @@ interface DashboardScreenProps {
 }
 
 export function DashboardScreen({ onBuy, onWallet, onAsset, onTab }: DashboardScreenProps) {
+  const router = useRouter();
   const { holdings, totalValue, isLoading } = useBalances();
-  const { plan } = useSubscription();
+  const { plan, status } = useSubscription(); // Added status
   const { basketId, amount: dcaAmount } = usePlanStore();
   const activeBasket = basketById(basketId);
 
-  // --- Simulated Profit/Loss (Replace with real cost basis from DB later) ---
-  const totalInvested = totalValue * 0.85; // Simulating that they are up 15%
+  const hasActivePlan = plan && status === 'active';
+
+  // Redirect logic: If they don't have an active plan, force them to the Plan screen
+  const handleBuyPress = () => {
+    if (hasActivePlan) {
+      onBuy(); // Go to baskets
+    } else {
+      router.push('/(auth)/plan'); // Force plan purchase
+    }
+  };
+
+  // --- Simulated Profit/Loss ---
+  const totalInvested = totalValue * 0.85;
   const totalProfit = totalValue - totalInvested;
   const profitPct = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
   const isPositive = totalProfit >= 0;
@@ -40,7 +54,7 @@ export function DashboardScreen({ onBuy, onWallet, onAsset, onTab }: DashboardSc
     ? [...holdings].sort((a, b) => b.change24h - a.change24h)[0] 
     : null;
 
-  // --- Next Buy Date (Simulated: 1st of next month) ---
+  // --- Next Buy Date ---
   const nextBuyDate = new Date();
   nextBuyDate.setMonth(nextBuyDate.getMonth() + 1, 1);
   const nextBuyStr = nextBuyDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -70,9 +84,9 @@ export function DashboardScreen({ onBuy, onWallet, onAsset, onTab }: DashboardSc
           <EmptyState
             icon="sparkles-outline"
             title="No investments yet"
-            message={plan ? "Your first DCA will execute soon." : "Choose a plan to start investing automatically."}
-            action={plan ? undefined : "Choose a Plan"}
-            onAction={plan ? undefined : onBuy}
+            message={hasActivePlan ? "Your first DCA will execute soon." : "Choose a plan to start investing automatically."}
+            action={hasActivePlan ? undefined : "Choose a Plan"}
+            onAction={hasActivePlan ? undefined : handleBuyPress}
           />
         </Container>
       </Screen>
@@ -115,9 +129,7 @@ export function DashboardScreen({ onBuy, onWallet, onAsset, onTab }: DashboardSc
               {isPositive ? '+' : ''}{fmtUSD(totalProfit)} ({fmtPct(profitPct)})
             </Text>
           </View>
-          <Text style={styles.chipNote}>
-            Invested: {fmtUSD(totalInvested)}
-          </Text>
+          <Text style={styles.chipNote}>Invested: {fmtUSD(totalInvested)}</Text>
         </View>
 
         <View style={{ marginHorizontal: -4, marginTop: 20 }}>
@@ -144,7 +156,7 @@ export function DashboardScreen({ onBuy, onWallet, onAsset, onTab }: DashboardSc
 
       {/* --- Quick Actions --- */}
       <View style={styles.quickActions}>
-        <Pressable style={styles.actionBtn} onPress={onBuy}>
+        <Pressable style={styles.actionBtn} onPress={handleBuyPress}>
           <View style={styles.actionIconWrap}>
             <Ionicons name="add" size={22} color={COLORS.accent} />
           </View>
@@ -172,7 +184,6 @@ export function DashboardScreen({ onBuy, onWallet, onAsset, onTab }: DashboardSc
         <View style={styles.allocationBar}>
           {holdings.map((h, i) => {
             const pct = totalValue > 0 ? (h.usdValue / totalValue) * 100 : 0;
-            // Alternate colors for the bar
             const colors = [COLORS.accent, COLORS.up, '#F59E0B', '#8B5CF6'];
             return (
               <View 
@@ -205,84 +216,39 @@ export function DashboardScreen({ onBuy, onWallet, onAsset, onTab }: DashboardSc
           />
         ))}
       </Container>
+
+      {/* --- Big Buy Button --- */}
+      <View style={{ marginTop: 16 }}>
+        <Button 
+          label={hasActivePlan ? "Buy Assets" : "Choose a Plan to Start"} 
+          icon={hasActivePlan ? "add-outline" : "lock-closed-outline"}
+          variant="accent" 
+          onPress={handleBuyPress} 
+        />
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  head: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
+  head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   label: { fontSize: 13, color: COLORS.t2, fontWeight: '500' },
   name: { fontSize: 24, fontWeight: '600', letterSpacing: -0.48, color: COLORS.t1 },
-  iconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
+  iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   chipRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    height: 28,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-  },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 28, paddingHorizontal: 10, borderRadius: 999 },
   chipUp: { backgroundColor: COLORS.upSoft },
   chipDown: { backgroundColor: COLORS.downSoft },
   chipText: { fontSize: 13, fontWeight: '600' },
   chipNote: { fontSize: 13, color: COLORS.t3 },
-  
   planName: { fontSize: 18, fontWeight: '600', color: COLORS.t1, marginTop: 4 },
   planDetail: { fontSize: 13, color: COLORS.t2, marginTop: 2 },
-  nextBuyChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.accentSoft,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
+  nextBuyChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: COLORS.accentSoft, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   nextBuyText: { fontSize: 12, fontWeight: '600', color: COLORS.accentText },
-
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
-    paddingHorizontal: 8,
-  },
+  quickActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, paddingHorizontal: 8 },
   actionBtn: { alignItems: 'center', gap: 6 },
-  actionIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: COLORS.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.line,
-  },
+  actionIconWrap: { width: 52, height: 52, borderRadius: 26, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.line },
   actionText: { fontSize: 13, fontWeight: '500', color: COLORS.t1 },
-
-  allocationBar: {
-    flexDirection: 'row',
-    height: 8,
-    borderRadius: 4,
-    overflow: 'hidden',
-    gap: 2,
-  },
+  allocationBar: { flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden', gap: 2 },
 });

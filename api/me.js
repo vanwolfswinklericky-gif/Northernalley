@@ -1,5 +1,5 @@
 // api/me.js
-import pool from './_lib/db.js';
+import { pool } from './_lib/db.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     const result = await pool.query(
       `SELECT 
         u.id, u.privy_user_id, u.email, u.wallet_address, u.push_token,
-        s.plan, s.status, s.current_period_end
+        s.plan, s.status, s.current_period_end, s.add_ons
        FROM users u
        LEFT JOIN subscriptions s ON s.user_id = u.id
        WHERE u.privy_user_id = $1

@@ -1,5 +1,5 @@
 // api/transactions.js
-import pool from './_lib/db.js';
+import { pool } from './_lib/db.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

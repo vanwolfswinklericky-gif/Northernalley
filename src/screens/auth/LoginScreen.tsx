@@ -7,7 +7,7 @@ import { COLORS } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useLoginWithOAuth } from '@privy-io/expo';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface LoginScreenProps {
   onBack: () => void;
@@ -25,6 +25,11 @@ export function LoginScreen({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
+  
+  // 1. Loading states
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
   const valid = EMAIL_RE.test(email) && password.length >= 8;
 
   const { login } = useLoginWithOAuth({
@@ -33,8 +38,21 @@ export function LoginScreen({
     },
     onError: (error) => {
       console.warn('Google login failed:', error);
+      setGoogleLoading(false); // Reset loading on error
     },
   });
+
+  const handleEmailLogin = () => {
+    if (!valid) return;
+    setEmailLoading(true);
+    onContinue();
+    setTimeout(() => setEmailLoading(false), 1000);
+  };
+
+  const handleGoogleLogin = () => {
+    setGoogleLoading(true);
+    login({ provider: 'google' });
+  };
 
   return (
     <Screen
@@ -42,20 +60,43 @@ export function LoginScreen({
       title="Welcome back"
       subtitle="Sign in to continue to your portfolio."
       footer={
-        <>
-          <Button label="Sign In" disabled={!valid} onPress={onContinue} />
+        <View style={styles.footer}>
+          <Button 
+            label="Sign In" 
+            disabled={!valid || googleLoading} 
+            loading={emailLoading}
+            onPress={handleEmailLogin} 
+          />
+          
           <View style={styles.divider}>
             <View style={styles.line} />
             <Text style={styles.dividerText}>or</Text>
             <View style={styles.line} />
           </View>
-          <Button
-            label="Continue with Google"
-            variant="secondary"
-            icon="logo-google"
-            onPress={() => login({ provider: 'google' })}
-          />
-        </>
+
+          {/* 2. Fixed Google Button with real logo */}
+          <Pressable
+            onPress={handleGoogleLogin}
+            disabled={emailLoading || googleLoading}
+            style={({ pressed }) => [
+              styles.googleBtn,
+              pressed && { opacity: 0.8 },
+              (emailLoading || googleLoading) && { opacity: 0.6 },
+            ]}
+          >
+            {googleLoading ? (
+              <ActivityIndicator color={COLORS.t1} />
+            ) : (
+              <>
+                <Image
+                  source={{ uri: 'https://developers.google.com/static/identity/images/g-logo.png' }}
+                  style={styles.googleIcon}
+                />
+                <Text style={styles.googleBtnText}>Continue with Google</Text>
+              </>
+            )}
+          </Pressable>
+        </View>
       }
     >
       <TextInput
@@ -91,6 +132,7 @@ export function LoginScreen({
 }
 
 const styles = StyleSheet.create({
+  footer: { paddingBottom: 40, gap: 16 },
   forgot: { alignSelf: 'flex-end', marginTop: -8 },
   forgotText: { fontSize: 14, color: COLORS.t2, fontWeight: '500' },
   divider: {
@@ -101,4 +143,25 @@ const styles = StyleSheet.create({
   },
   line: { flex: 1, height: 1, backgroundColor: COLORS.line },
   dividerText: { fontSize: 13, color: COLORS.t3, fontWeight: '500' },
+  
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 56,
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: COLORS.line,
+    gap: 12,
+  },
+  googleIcon: {
+    width: 22,
+    height: 22,
+  },
+  googleBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.t1,
+  },
 });
