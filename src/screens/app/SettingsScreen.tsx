@@ -35,9 +35,7 @@ export function SettingsScreen({
   const { user, logout } = usePrivy();
   const { plan, status } = useSubscription();
   const { rates, isLoading: ratesLoading } = useExchangeRates();
-  
-  // Zustand stores
-  const { currency, setCurrency, reset: clearPlan } = usePlanStore();
+  const clearPlan = usePlanStore((s) => s.reset);
   const clearPortfolio = usePortfolioStore((s) => s.clear);
 
   const [notif, setNotif] = useState(true);
@@ -46,8 +44,10 @@ export function SettingsScreen({
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingPortal, setLoadingPortal] = useState(false);
 
-  // FIX: Cast user to 'any' for the email property
-  const email = (user as any)?.email?.address || 'user@example.com';
+  const { currency, setCurrency } = usePlanStore();
+
+  // Generate initials from email (e.g., "john.doe@gmail.com" -> "JD")
+  const email = user?.email?.address || 'user@example.com';
   const initials = email.substring(0, 2).toUpperCase();
 
   const availableCurrencies = Object.keys(rates).map((code) => {
@@ -93,10 +93,10 @@ export function SettingsScreen({
         text: 'Sign Out', 
         style: 'destructive',
         onPress: async () => {
-          await logout();
-          clearPlan();
+          await logout(); // Clears Privy session
+          clearPlan();    // Clears Zustand store
           clearPortfolio();
-          onSignOut();
+          onSignOut();    // Routes to Onboarding
         } 
       },
     ]);
@@ -156,7 +156,6 @@ export function SettingsScreen({
       <Container flush>
         <ListRow icon="notifications-outline" title="Notifications" toggle={notif} onToggle={setNotif} />
         <ListRow icon="finger-print-outline" title="Face ID" toggle={bio} onToggle={setBio} />
-        
         <ListRow 
           icon="cash-outline" 
           title="Currency" 
@@ -184,7 +183,7 @@ export function SettingsScreen({
         Rates By Exchange Rate API
       </Text>
 
-      {/* Currency Modal */}
+      {/* Currency Modal (Same as previous code) */}
       <Modal visible={showCurrencyModal} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={styles.modalSafe}>
           <View style={styles.modalHeader}>

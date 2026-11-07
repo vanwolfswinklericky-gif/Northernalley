@@ -5,37 +5,36 @@ import { Container } from '@/components/ui/Container';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS, SPACING } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { useEmbeddedEthereumWallet, useSessionSigners, usePrivy } from '@privy-io/expo';
-import { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import {
+  getAllUserEmbeddedEthereumWallets,
+  useDelegatedActions,
+  usePrivy,
+} from '@privy-io/expo';
+import { useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
 interface ProvisionSignerScreenProps {
   onBack: () => void;
   onSuccess: () => void;
 }
 
-export function ProvisionSignerScreen({ onBack, onSuccess }: ProvisionSignerScreenProps) {
-  const { isReady } = usePrivy();
-  const { wallets, create } = useEmbeddedEthereumWallet(); // Get the 'create' function
-  const { addSessionSigners } = useSessionSigners();
-  
+export function ProvisionSignerScreen({
+  onBack,
+  onSuccess,
+}: ProvisionSignerScreenProps) {
+  const { user, isReady } = usePrivy();
+  const { delegateWallet } = useDelegatedActions();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const wallet = wallets[0];
+  // Get the user's embedded Ethereum wallets
+  const wallets = getAllUserEmbeddedEthereumWallets(user);
 
-  // Manually create the wallet if it doesn't exist
-  useEffect(() => {
-    if (isReady && !wallet && !loading) {
-      setLoading(true);
-      create().catch((err) => {
-        console.error('Wallet creation failed:', err);
-        setError('Failed to create wallet. Please try again.');
-      }).finally(() => {
-        setLoading(false);
-      });
-    }
-  }, [isReady, wallet, create, loading]);
+  // Find the primary wallet (index 0)
+  const walletToDelegate = wallets.find((wallet) => wallet.wallet_index === 0);
+
+  // Check if already delegated
+  const isAlreadyDelegated = walletToDelegate?.delegated === true;
 
   const handleDelegate = async () => {
     if (!wallet) {
@@ -47,19 +46,14 @@ export function ProvisionSignerScreen({ onBack, onSuccess }: ProvisionSignerScre
     setError(null);
 
     try {
-      await addSessionSigners({
-        address: wallet.address,
-        signers: [
-          {
-            signer_id: process.env.EXPO_PUBLIC_PRIVY_KEY_QUORUM_ID || process.env.EXPO_PUBLIC_PRIVY_POLICY_ID,
-            policy_ids: [],
-          }
-        ] as any,
+      await delegateWallet({
+        address: walletToDelegate.address,
+        chainType: 'ethereum',
       });
-      
       onSuccess();
     } catch (err: any) {
-      if (err?.message?.includes('rejected')) {
+      // User rejected or another error occurred
+      if (err?.message?.includes('rejected') || err?.code === 'ACTION_REJECTED') {
         setError('You declined the request. Automatic investing requires your permission.');
       } else {
         setError(err?.message || 'Something went wrong. Please try again.');
@@ -84,7 +78,7 @@ export function ProvisionSignerScreen({ onBack, onSuccess }: ProvisionSignerScre
   return (
     <Screen
       onBack={onBack}
-      progress={4 / 10}
+      progress={4 / 7}
       title="Enable automatic investing"
       subtitle="Grant Northernalley permission to invest for you on schedule."
       footer={
@@ -95,6 +89,14 @@ export function ProvisionSignerScreen({ onBack, onSuccess }: ProvisionSignerScre
             loading={loading}
             onPress={handleDelegate}
           />
+          {isAlreadyDelegated && (
+            <View style={styles.successRow}>
+              <Ionicons name="checkmark-circle" size={16} color={COLORS.up} />
+              <Text style={styles.successText}>
+                Your wallet is already delegated
+              </Text>
+            </View>
+          )}
         </View>
       }
     >
@@ -116,6 +118,12 @@ export function ProvisionSignerScreen({ onBack, onSuccess }: ProvisionSignerScre
               Only swap transactions are allowed — no withdrawals to other addresses
             </Text>
           </View>
+          <View style={styles.bullet}>
+            <Ionicons name="checkmark-circle" size={18} color={COLORS.accent} />
+            <Text style={styles.bulletText}>
+              You keep full control — revoke access anytime from Settings
+            </Text>
+          </View>
         </View>
       </Container>
 
@@ -127,34 +135,83 @@ export function ProvisionSignerScreen({ onBack, onSuccess }: ProvisionSignerScre
           </View>
         </Container>
       )}
+
+      <Text style={styles.note}>
+        Your funds always stay in your wallet. Northernalley never holds your keys.
+      </Text>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
+  footer: {
+    paddingBottom: 40,
+    gap: 12,
   },
-  loadingText: {
-    fontSize: 16,
-    color: COLORS.t2,
+  card: {
+    marginBottom: 16,
   },
-  footer: { paddingBottom: 40, gap: 12 },
-  card: { marginBottom: 16 },
   iconWrap: {
-    width: 64, height: 64, borderRadius: 32,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: COLORS.accentSoft,
-    alignItems: 'center', justifyContent: 'center',
-    alignSelf: 'center', marginBottom: SPACING.s3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: SPACING.s3,
   },
-  heading: { fontSize: 17, fontWeight: '600', color: COLORS.t1, marginBottom: SPACING.s3, textAlign: 'center' },
-  bulletList: { gap: 12 },
-  bullet: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  bulletText: { flex: 1, fontSize: 14, color: COLORS.t1, lineHeight: 20 },
-  errorCard: { marginBottom: 16 },
-  errorRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  errorText: { flex: 1, fontSize: 14, color: COLORS.danger, lineHeight: 20 },
+  heading: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: COLORS.t1,
+    marginBottom: SPACING.s3,
+    textAlign: 'center',
+  },
+  bulletList: {
+    gap: 12,
+  },
+  bullet: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  bulletText: {
+    flex: 1,
+    fontSize: 14,
+    color: COLORS.t1,
+    lineHeight: 20,
+  },
+  errorCard: {
+    marginBottom: 16,
+  },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 14,
+    color: COLORS.danger,
+    lineHeight: 20,
+  },
+  successRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  successText: {
+    fontSize: 13,
+    color: COLORS.up,
+    fontWeight: '500',
+  },
+  note: {
+    fontSize: 12,
+    color: COLORS.t3,
+    textAlign: 'center',
+    paddingHorizontal: SPACING.s4,
+    lineHeight: 18,
+  },
 });

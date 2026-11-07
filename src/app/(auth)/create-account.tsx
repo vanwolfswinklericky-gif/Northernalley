@@ -8,6 +8,7 @@ export default function CreateAccountRoute() {
   return (
     <CreateAccountScreen
       onBack={() => router.back()}
+      onContinue={() => router.replace('/(auth)/plan')}
     />
   );
 }
