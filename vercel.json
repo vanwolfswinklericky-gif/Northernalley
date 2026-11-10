@@ -10,5 +10,11 @@
     "api/**/*.js": {
       "includeFiles": "{node_modules/@hpke/**,node_modules/@privy-io/**}"
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/auth/verify-password", "destination": "/api/auth" },
+    { "source": "/auth/register-password", "destination": "/api/auth" },
+    { "source": "/api/hello", "destination": "/api/user-data" },
+    { "source": "/api/me", "destination": "/api/user-data" }
+  ]
 }

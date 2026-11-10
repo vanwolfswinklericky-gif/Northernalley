@@ -46,7 +46,7 @@ export function ListRow({
             <Ionicons
               name={icon}
               size={20}
-              color={iconColor ?? (danger ? COLORS.danger : COLORS.t1)}
+              color={iconColor ?? (danger ? COLORS.danger : COLORS.t2)}
             />
           </View>
         ))}

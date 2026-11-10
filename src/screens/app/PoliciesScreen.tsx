@@ -14,27 +14,27 @@ interface PoliciesScreenProps {
 const POLICIES: [string, string, string][] = [
   [
     'Terms of Service',
-    'Updated Sep 2026',
+    'Updated Oct 2026',
     'By using Northernalley you agree to these terms. Northernalley provides a recurring purchase service for digital assets. We do not provide investment advice. You are responsible for evaluating whether a plan is suitable for you.',
   ],
   [
     'Privacy Policy',
-    'Updated Aug 2026',
+    'Updated Oct 2026',
     'We collect only the information required to verify your identity, process payments, and operate your account. We never sell personal data. You can request a copy or deletion of your data at any time from Settings.',
   ],
   [
     'Risk Disclosure',
-    'Updated Jul 2026',
+    'Updated Oct 2026',
     'Digital assets are highly volatile. The value of your portfolio may go up or down, and you may lose some or all of the money you invest. Past performance does not guarantee future results.',
   ],
   [
     'Fee Schedule',
-    'Updated Jul 2026',
+    'Updated Oct 2026',
     'A 1.5% service fee is included in each purchase. There are no account, custody, or withdrawal fees charged by Northernalley. Network fees may apply when sending assets.',
   ],
   [
     'Cookie Policy',
-    'Updated Jun 2026',
+    'Updated Oct 2026',
     'Our app uses minimal local storage to keep you signed in and remember preferences. We do not use third-party advertising trackers.',
   ],
 ];

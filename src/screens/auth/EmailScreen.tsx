@@ -5,7 +5,7 @@ import { Screen } from '@/components/ui/Screen';
 import { TextInput } from '@/components/ui/TextInput';
 import { COLORS } from '@/constants/theme';
 import { usePlanStore } from '@/store/planStore';
-import { useLoginWithOAuth } from '@privy-io/expo';
+import { useLoginWithEmail, useLoginWithOAuth } from '@privy-io/expo';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -15,34 +15,63 @@ const EMAIL_RE = /^\S+@\S+\.\S+$/;
 export function EmailScreen() {
   const router = useRouter();
   const setEmail = usePlanStore((s) => s.setEmail);
-  
+
   const [email, setLocalEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  
-  // Loading states
+
   const [emailLoading, setEmailLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  // Google OAuth Hook
+  const { sendCode } = useLoginWithEmail();
+
   const { login: loginWithGoogle } = useLoginWithOAuth({
-    onSuccess: () => {
-      router.replace('/(auth)/plan');
-    },
+    onSuccess: () => router.replace('/(auth)/plan'),
     onError: (err) => {
       setError(err.message || 'Google sign in failed');
-      setGoogleLoading(false); // Stop spinner on error
+      setGoogleLoading(false);
     },
   });
 
-  const handleContinue = () => {
+  // Verify password against your backend, then trigger Privy OTP
+  const handleEmailLogin = async () => {
     if (!EMAIL_RE.test(email)) return;
-    
+    if (password.length === 0) {
+      setError('Please enter your password.');
+      return;
+    }
+
     setEmailLoading(true);
-    setEmail(email.trim().toLowerCase());
-    router.push('/(auth)/create-account');
-    
-    // Reset loading state after a short delay in case the user comes back
-    setTimeout(() => setEmailLoading(false), 1000);
+    setError(null);
+
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+
+      const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/auth/verify-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail, password }),
+      });
+
+      if (res.status === 401) {
+        setError('Incorrect email or password.');
+        return;
+      }
+      if (!res.ok) {
+        setError('Something went wrong. Please try again.');
+        return;
+      }
+
+      // Password OK → let Privy send the OTP
+      setEmail(normalizedEmail);
+      await sendCode({ email: normalizedEmail });
+
+      router.push('/(auth)/verify-otp');
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong. Try again.');
+    } finally {
+      setEmailLoading(false);
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -54,17 +83,17 @@ export function EmailScreen() {
     <Screen
       onBack={() => router.back()}
       progress={1 / 10}
-      title="What's your email?"
-      subtitle="We'll use this to create your account."
+      title="Sign in"
+      subtitle="Enter your email and password to continue."
       footer={
         <View style={styles.footer}>
           {error && <Text style={styles.errorText}>{error}</Text>}
 
           <Button
             label="Continue"
-            disabled={!EMAIL_RE.test(email) || googleLoading}
+            disabled={!EMAIL_RE.test(email) || password.length === 0 || googleLoading}
             loading={emailLoading}
-            onPress={handleContinue}
+            onPress={handleEmailLogin}
           />
 
           <View style={styles.divider}>
@@ -94,6 +123,13 @@ export function EmailScreen() {
               </>
             )}
           </Pressable>
+
+          <Pressable
+            onPress={() => router.push('/(auth)/create-account')}
+            style={{ marginTop: 16, alignItems: 'center' }}
+          >
+            <Text style={{ color: COLORS.t3, fontSize: 13 }}>New here? Create an account</Text>
+          </Pressable>
         </View>
       }
     >
@@ -106,55 +142,28 @@ export function EmailScreen() {
         autoCapitalize="none"
         autoFocus
       />
+      <TextInput
+        label="Password"
+        value={password}
+        onChange={setPassword}
+        placeholder="••••••••"
+        secureTextEntry
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  footer: {
-    paddingBottom: 40,
-    gap: 16,
-  },
-  errorText: {
-    color: COLORS.danger,
-    fontSize: 13,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginVertical: 4,
-  },
-  line: {
-    flex: 1,
-    height: 1,
-    backgroundColor: COLORS.line,
-  },
-  dividerText: {
-    fontSize: 13,
-    color: COLORS.t3,
-    fontWeight: '500',
-  },
+  footer: { paddingBottom: 40, gap: 16 },
+  errorText: { color: COLORS.danger, fontSize: 13, textAlign: 'center', marginBottom: 8 },
+  divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 4 },
+  line: { flex: 1, height: 1, backgroundColor: COLORS.line },
+  dividerText: { fontSize: 13, color: COLORS.t3, fontWeight: '500' },
   googleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 56,
-    borderRadius: 999,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: COLORS.line,
-    gap: 12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    height: 56, borderRadius: 999, backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: COLORS.line, gap: 12,
   },
-  googleIcon: {
-    width: 22,
-    height: 22,
-  },
-  googleBtnText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.t1,
-  },
+  googleIcon: { width: 22, height: 22 },
+  googleBtnText: { fontSize: 16, fontWeight: '600', color: COLORS.t1 },
 });

@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#FFFFFF', // Forces a solid white background
+    backgroundColor: '#000000', // Forces a solid white background
     zIndex: 9999,               // Force it on top of everything
     elevation: 9999,            // Force it on top for Android
   },

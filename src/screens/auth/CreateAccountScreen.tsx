@@ -14,14 +14,13 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 export function CreateAccountScreen({ onBack }: { onBack: () => void }) {
   const router = useRouter();
   const email = usePlanStore((s) => s.email);
-  
+
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Privy Hook
   const { sendCode } = useLoginWithEmail();
 
   const checks: [string, boolean][] = [
@@ -38,17 +37,28 @@ export function CreateAccountScreen({ onBack }: { onBack: () => void }) {
       Alert.alert('Error', 'Email is missing. Please go back.');
       return;
     }
-    
+
     setLoading(true);
     setError(null);
 
     try {
-      // Privy sends the 6-digit verification code to the user's email
+      // 1. Store password hash on YOUR backend first
+      const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/auth/register-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.message || 'Failed to create account.');
+        return;
+      }
+
+      // 2. Then trigger Privy OTP
       await sendCode({ email });
-      
-      // Move to the OTP verification screen instead of the Plan screen
+
       router.replace('/(auth)/verify-otp');
-      
     } catch (err: any) {
       setError(err.message || 'Failed to create account.');
     } finally {
@@ -58,11 +68,7 @@ export function CreateAccountScreen({ onBack }: { onBack: () => void }) {
 
   const eye = (
     <Pressable onPress={() => setShow(!show)} hitSlop={8}>
-      <Ionicons 
-        name={show ? 'eye-off-outline' : 'eye-outline'} 
-        size={20} 
-        color={COLORS.t3} 
-      />
+      <Ionicons name={show ? 'eye-off-outline' : 'eye-outline'} size={20} color={COLORS.t3} />
     </Pressable>
   );
 
@@ -75,12 +81,7 @@ export function CreateAccountScreen({ onBack }: { onBack: () => void }) {
       footer={
         <View style={styles.footer}>
           {error && <Text style={styles.errorText}>{error}</Text>}
-          <Button
-            label="Create Account"
-            disabled={!valid}
-            loading={loading}
-            onPress={handleCreateAccount}
-          />
+          <Button label="Create Account" disabled={!valid} loading={loading} onPress={handleCreateAccount} />
         </View>
       }
     >
@@ -92,7 +93,6 @@ export function CreateAccountScreen({ onBack }: { onBack: () => void }) {
         secureTextEntry={!show}
         right={eye}
       />
-      
       <TextInput
         label="Confirm password"
         value={confirm}
@@ -110,9 +110,7 @@ export function CreateAccountScreen({ onBack }: { onBack: () => void }) {
               size={18}
               color={on ? COLORS.accent : COLORS.t3}
             />
-            <Text style={[styles.checkText, { color: on ? COLORS.t1 : COLORS.t3 }]}>
-              {label}
-            </Text>
+            <Text style={[styles.checkText, { color: on ? COLORS.t1 : COLORS.t3 }]}>{label}</Text>
           </View>
         ))}
       </View>
@@ -121,25 +119,9 @@ export function CreateAccountScreen({ onBack }: { onBack: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  footer: {
-    paddingBottom: 40,
-  },
-  checks: {
-    gap: 10,
-    marginTop: 16,
-  },
-  checkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  checkText: {
-    fontSize: 14,
-  },
-  errorText: {
-    color: COLORS.danger,
-    fontSize: 13,
-    textAlign: 'center',
-    marginBottom: 12,
-  },
+  footer: { paddingBottom: 40 },
+  checks: { gap: 10, marginTop: 16 },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  checkText: { fontSize: 14 },
+  errorText: { color: COLORS.danger, fontSize: 13, textAlign: 'center', marginBottom: 12 },
 });
