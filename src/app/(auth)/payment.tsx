@@ -12,7 +12,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://northernalley.vercel
 export default function PaymentRoute() {
   const router = useRouter();
   const { user } = usePrivy();
-  const { plan, basketId, amount } = usePlanStore();
+  const { plan, basketId, amount, addOns } = usePlanStore();
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {

@@ -32,7 +32,7 @@ export default function SettingsRoute() {
           router.push('/(app)/wallet');
         } else {
           Alert.alert('No Active Plan', 'Please purchase a plan to access your wallet.');
-          router.push('/(auth)/plan');
+          router.push('/(app)/plan');
         }
       }}
 
@@ -42,9 +42,9 @@ export default function SettingsRoute() {
       // Restrict Plan/Basket management to active subscribers
       onPlan={() => {
         if (hasActivePlan) {
-          router.push('/(auth)/baskets'); // Go pick a basket if they have a plan
+          router.push('/(app)/baskets');
         } else {
-          router.push('/(auth)/plan'); // Force them to buy the subscription first
+          router.push('/(app)/plan');
         }
       }}
       

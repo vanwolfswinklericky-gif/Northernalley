@@ -72,8 +72,8 @@ export default async function handler(req, res) {
       mode: 'subscription',
       line_items: line_items,
       // DEEP LINK: Redirects back to the app with the custom scheme
-      success_url: 'northernalley://(auth)/success',
-      cancel_url: 'northernalley://(auth)/failure',
+      success_url: 'northernalley://(app)/success',
+      cancel_url: 'northernalley://(app)/failure',
       metadata: {
         privyUserId,
         plan,

@@ -5,37 +5,109 @@ import { Screen } from '@/components/ui/Screen';
 import { TextInput } from '@/components/ui/TextInput';
 import { COLORS } from '@/constants/theme';
 import { usePlanStore } from '@/store/planStore';
-import { useLoginWithEmail, useLoginWithOAuth } from '@privy-io/expo';
+import { useLoginWithEmail, useLoginWithOAuth, usePrivy } from '@privy-io/expo';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://northernalley.vercel.app';
 
 export function EmailScreen() {
   const router = useRouter();
   const setEmail = usePlanStore((s) => s.setEmail);
+  const { user } = usePrivy(); // Needed to get the ID right after Google login
 
   const [email, setLocalEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  const [step, setStep] = useState<'email' | 'password'>('email');
+  const [checking, setChecking] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const { sendCode } = useLoginWithEmail();
 
   const { login: loginWithGoogle } = useLoginWithOAuth({
-    onSuccess: () => router.replace('/(app)/(tabs)/dashboard'),
+    onSuccess: async () => {
+      // 1. Give Privy a moment to populate the `user` object
+      setTimeout(async () => {
+        if (!user?.id) {
+          setError('Google login failed. User object not found.');
+          setGoogleLoading(false);
+          return;
+        }
+
+        try {
+          // 2. Sync with your backend to determine if this is a new or existing user
+          const res = await fetch(`${API_URL}/auth/sync-user`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              privyUserId: user.id,
+              email: (user as any).email?.address || null,
+            }),
+          });
+
+          const data = await res.json();
+
+          // 3. Route based on whether they are new
+          if (data.isNewUser) {
+            router.replace('/(auth)/plan'); // New user -> onboarding
+          } else {
+            router.replace('/(app)/(tabs)/dashboard'); // Existing user -> dashboard
+          }
+        } catch (err) {
+          // Fallback: If backend fails, just send them to dashboard
+          console.error('Google sync failed:', err);
+          router.replace('/(app)/(tabs)/dashboard');
+        } finally {
+          setGoogleLoading(false);
+        }
+      }, 800); // 800ms delay to let Privy hydrate the `user` hook
+    },
     onError: (err) => {
       setError(err.message || 'Google sign in failed');
       setGoogleLoading(false);
     },
   });
 
-  // Verify password against your backend, then trigger Privy OTP
-  const handleEmailLogin = async () => {
+  // Step 1: check if user exists
+  const handleEmailContinue = async () => {
     if (!EMAIL_RE.test(email)) return;
+    setChecking(true);
+    setError(null);
+
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+
+      const res = await fetch(`${API_URL}/auth/check-user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail }),
+      });
+
+      const data = await res.json();
+
+      if (data.exists) {
+        // Returning user → show password
+        setLocalEmail(normalizedEmail);
+        setStep('password');
+      } else {
+        // New user → go to create account
+        setEmail(normalizedEmail);
+        router.push('/(auth)/create-account');
+      }
+    } catch (err: any) {
+      setError('Could not check email. Try again.');
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  // Step 2: verify password for returning user
+  const handlePasswordSubmit = async () => {
     if (password.length === 0) {
       setError('Please enter your password.');
       return;
@@ -47,14 +119,14 @@ export function EmailScreen() {
     try {
       const normalizedEmail = email.trim().toLowerCase();
 
-      const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/auth/verify-password`, {
+      const res = await fetch(`${API_URL}/auth/verify-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: normalizedEmail, password }),
       });
 
       if (res.status === 401) {
-        setError('Incorrect email or password.');
+        setError('Incorrect password.');
         return;
       }
       if (!res.ok) {
@@ -62,13 +134,11 @@ export function EmailScreen() {
         return;
       }
 
-      // Password OK → let Privy send the OTP
       setEmail(normalizedEmail);
       await sendCode({ email: normalizedEmail });
-
       router.push({ pathname: '/(auth)/verify-otp', params: { flow: 'login' } });
     } catch (err: any) {
-      setError(err.message || 'Something went wrong. Try again.');
+      setError(err.message || 'Something went wrong.');
     } finally {
       setEmailLoading(false);
     }
@@ -81,74 +151,91 @@ export function EmailScreen() {
 
   return (
     <Screen
-      onBack={() => router.back()}
+      onBack={() => (step === 'password' ? setStep('email') : router.back())}
       progress={1 / 10}
-      title="Sign in"
-      subtitle="Enter your email and password to continue."
+      title={step === 'email' ? 'Sign in' : 'Enter your password'}
+      subtitle={step === 'email' ? 'Enter your email to continue.' : `Welcome back, ${email}`}
       footer={
         <View style={styles.footer}>
           {error && <Text style={styles.errorText}>{error}</Text>}
 
-          <Button
-            label="Continue"
-            disabled={!EMAIL_RE.test(email) || password.length === 0 || googleLoading}
-            loading={emailLoading}
-            onPress={handleEmailLogin}
-          />
+          {step === 'email' ? (
+            <Button
+              label="Continue"
+              disabled={!EMAIL_RE.test(email) || googleLoading}
+              loading={checking}
+              onPress={handleEmailContinue}
+            />
+          ) : (
+            <Button
+              label="Sign In"
+              disabled={password.length === 0}
+              loading={emailLoading}
+              onPress={handlePasswordSubmit}
+            />
+          )}
 
-          <View style={styles.divider}>
-            <View style={styles.line} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.line} />
-          </View>
+          {step === 'email' && (
+            <>
+              <View style={styles.divider}>
+                <View style={styles.line} />
+                <Text style={styles.dividerText}>or</Text>
+                <View style={styles.line} />
+              </View>
 
-          <Pressable
-            onPress={handleGoogleLogin}
-            disabled={emailLoading || googleLoading}
-            style={({ pressed }) => [
-              styles.googleBtn,
-              pressed && { opacity: 0.8 },
-              (emailLoading || googleLoading) && { opacity: 0.6 },
-            ]}
-          >
-            {googleLoading ? (
-              <ActivityIndicator color={COLORS.t1} />
-            ) : (
-              <>
-                <Image
-                  source={{ uri: 'https://developers.google.com/static/identity/images/g-logo.png' }}
-                  style={styles.googleIcon}
-                />
-                <Text style={styles.googleBtnText}>Continue with Google</Text>
-              </>
-            )}
-          </Pressable>
+              <Pressable
+                onPress={handleGoogleLogin}
+                disabled={checking || googleLoading}
+                style={({ pressed }) => [
+                  styles.googleBtn,
+                  pressed && { opacity: 0.8 },
+                  (checking || googleLoading) && { opacity: 0.6 },
+                ]}
+              >
+                {googleLoading ? (
+                  <ActivityIndicator color={COLORS.t1} />
+                ) : (
+                  <>
+                    <Image
+                      source={{ uri: 'https://developers.google.com/static/identity/images/g-logo.png' }}
+                      style={styles.googleIcon}
+                    />
+                    <Text style={styles.googleBtnText}>Continue with Google</Text>
+                  </>
+                )}
+              </Pressable>
 
-          <Pressable
-            onPress={() => router.push('/(auth)/create-account')}
-            style={{ marginTop: 16, alignItems: 'center' }}
-          >
-            <Text style={{ color: COLORS.t3, fontSize: 13 }}>New here? Create an account</Text>
-          </Pressable>
+              <Pressable
+                onPress={() => router.push('/(auth)/create-account')}
+                style={{ marginTop: 16, alignItems: 'center' }}
+              >
+                <Text style={{ color: COLORS.t3, fontSize: 13 }}>New here? Create an account</Text>
+              </Pressable>
+            </>
+          )}
         </View>
       }
     >
-      <TextInput
-        label="Email"
-        value={email}
-        onChange={setLocalEmail}
-        placeholder="you@example.com"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoFocus
-      />
-      <TextInput
-        label="Password"
-        value={password}
-        onChange={setPassword}
-        placeholder="••••••••"
-        secureTextEntry
-      />
+      {step === 'email' ? (
+        <TextInput
+          label="Email"
+          value={email}
+          onChange={setLocalEmail}
+          placeholder="you@example.com"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoFocus
+        />
+      ) : (
+        <TextInput
+          label="Password"
+          value={password}
+          onChange={setPassword}
+          placeholder="••••••••"
+          secureTextEntry
+          autoFocus
+        />
+      )}
     </Screen>
   );
 }

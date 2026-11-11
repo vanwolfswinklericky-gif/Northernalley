@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 
 interface AuthState {
+  setHasActivePlan: any;
   /** Whether the app is locked (requires local passcode to unlock) */
   isLocked: boolean;
   /** Whether the wallet has been created (used for routing decisions) */

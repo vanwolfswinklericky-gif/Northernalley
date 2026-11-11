@@ -15,18 +15,17 @@ import { useBalances } from '@/hooks/useBalances';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePlanStore } from '@/store/planStore';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface DashboardScreenProps {
   onBuy: () => void;
+  onChoosePlan: () => void;
   onWallet: () => void;
   onAsset: (symbol: string) => void;
   onTab: (key: string) => void;
 }
 
-export function DashboardScreen({ onBuy, onWallet, onAsset, onTab }: DashboardScreenProps) {
-  const router = useRouter();
+export function DashboardScreen({ onBuy, onChoosePlan, onWallet, onAsset, onTab }: DashboardScreenProps) {
   const { holdings, totalValue, isLoading } = useBalances();
   const { plan, status } = useSubscription(); // Added status
   const { basketId, amount: dcaAmount } = usePlanStore();
@@ -34,12 +33,12 @@ export function DashboardScreen({ onBuy, onWallet, onAsset, onTab }: DashboardSc
 
   const hasActivePlan = plan && status === 'active';
 
-  // Redirect logic: If they don't have an active plan, force them to the Plan screen
+  // Send users without an active subscription through plan selection.
   const handleBuyPress = () => {
     if (hasActivePlan) {
       onBuy(); // Go to baskets
     } else {
-      router.push('/(auth)/plan'); // Force plan purchase
+      onChoosePlan();
     }
   };
 

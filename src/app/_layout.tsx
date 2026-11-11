@@ -1,7 +1,7 @@
 // src/app/_layout.tsx
 import * as Crypto from 'expo-crypto';
 
-// Hermes Web Crypto polyfill (keep as is)
+// Hermes Web Crypto polyfill
 if (typeof (globalThis as any).crypto === 'undefined') (globalThis as any).crypto = {};
 if (typeof (globalThis as any).crypto.getRandomValues !== 'function') (globalThis as any).crypto.getRandomValues = Crypto.getRandomValues;
 if (typeof (globalThis as any).crypto.randomUUID !== 'function') (globalThis as any).crypto.randomUUID = Crypto.randomUUID;
@@ -24,52 +24,38 @@ function RootNavigator() {
   const { user, isReady } = usePrivy();
   const wallet = useEmbeddedWallet();
 
-  // 1. Calculate all values BEFORE any early returns
   const loggedIn = !!user;
   const walletReady = isConnected(wallet);
   const walletNeedsRecovery = needsRecovery(wallet);
   const walletNotCreated = isNotCreated(wallet);
 
-  // 2. ALL HOOKS MUST GO HERE, before any return statements
-  useEffect(() => {
-    if (isReady && loggedIn && walletNotCreated) {
-      wallet.create({ recoveryMethod: 'privy' }).catch((error) => {
-        console.error('Auto wallet creation failed:', error);
-      });
-    }
-  }, [isReady, loggedIn, walletNotCreated]);
-
-  // 3. Now it is safe to do early returns
   if (!isReady) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator color="#fff" />
+        <ActivityIndicator color={COLORS.accent} />
       </View>
     );
   }
 
+  // If logged in but wallet is still loading/creating, show a loader
   if (loggedIn && walletNotCreated) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator color="#fff" />
+        <ActivityIndicator color={COLORS.accent} />
       </View>
     );
   }
 
-  // 4. Render the navigation stack
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: COLORS.bg } }}>
-      {/* Logged out: Auth (Login/OTP) */}
       <Stack.Protected guard={!loggedIn}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
 
-      {/* Logged in, wallet needs recovery: Recovery */}
       <Stack.Protected guard={loggedIn && walletNeedsRecovery}>
         <Stack.Screen name="(auth)/recovery" />
       </Stack.Protected>
 
-      {/* Logged in, wallet ready: Main App */}
       <Stack.Protected guard={loggedIn && walletReady}>
         <Stack.Screen name="(app)" />
       </Stack.Protected>

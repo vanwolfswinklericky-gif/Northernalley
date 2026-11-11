@@ -11,6 +11,13 @@ export interface AddOns {
   prioritySupport: boolean;
 }
 
+const initialAddOns: AddOns = {
+  extraBasket: false,
+  weeklyDca: false,
+  customBasket: false,
+  prioritySupport: false,
+};
+
 interface PlanState {
   basketId: string | null;
   amount: number | null;
@@ -18,6 +25,7 @@ interface PlanState {
   email: string | null;
   plan: SubscriptionPlan | null;
   currency: string; // Supports all ISO 4217 currency codes
+  addOns: AddOns;
 
   setBasket: (basketId: string) => void;
   setAmount: (amount: number) => void;
@@ -25,6 +33,7 @@ interface PlanState {
   setEmail: (email: string) => void;
   setPlan: (plan: SubscriptionPlan) => void;
   setCurrency: (currency: string) => void;
+  toggleAddOn: (addOn: keyof AddOns) => void;
   reset: () => void;
 }
 
@@ -35,6 +44,7 @@ const initialState = {
   email: null,
   plan: null,
   currency: 'USD', // Default currency
+  addOns: initialAddOns,
 };
 
 export const usePlanStore = create<PlanState>((set) => ({
@@ -46,5 +56,9 @@ export const usePlanStore = create<PlanState>((set) => ({
   setEmail: (email) => set({ email }),
   setPlan: (plan) => set({ plan }),
   setCurrency: (currency) => set({ currency }),
-  reset: () => set(initialState),
+  toggleAddOn: (addOn) =>
+    set((state) => ({
+      addOns: { ...state.addOns, [addOn]: !state.addOns[addOn] },
+    })),
+  reset: () => set({ ...initialState, addOns: { ...initialAddOns } }),
 }));

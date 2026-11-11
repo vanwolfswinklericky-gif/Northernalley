@@ -32,7 +32,7 @@ export function CreatePasscodeScreen() {
           recoveryMethod: 'user-passcode',
           password: passcode,
         });
-        router.replace('/(auth)/plan');
+        router.replace('/(app)/plan');
       } else if (needsRecovery(wallet)) {
         // Wallet exists but isn't available on this device — go recover it.
         router.replace('/(auth)/recovery');

@@ -7,12 +7,15 @@ import { COLORS } from '@/constants/theme';
 import { usePlanStore } from '@/store/planStore';
 import { Ionicons } from '@expo/vector-icons';
 import { isNotCreated, useEmbeddedWallet, useLoginWithEmail } from '@privy-io/expo';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-export function OtpScreen({ onBack, isLoginFlow = false }: { onBack: () => void; isLoginFlow?: boolean }) {
+export function OtpScreen({ onBack }: { onBack: () => void }) {
   const router = useRouter();
+  // Read the flow param passed from EmailScreen or CreateAccountScreen
+  const { flow } = useLocalSearchParams<{ flow?: string }>();
+
   const email = usePlanStore((s) => s.email);
   const wallet = useEmbeddedWallet();
 
@@ -42,7 +45,14 @@ export function OtpScreen({ onBack, isLoginFlow = false }: { onBack: () => void;
 
     try {
       await loginWithCode({ code, email: email ?? undefined });
-      router.replace(isLoginFlow ? '/(app)/(tabs)/dashboard' : '/(auth)/plan');
+
+      // Route based on the flow param
+      if (flow === 'login') {
+        router.replace('/(app)/(tabs)/dashboard');
+      } else {
+        // Signup users are authenticated now, so use the logged-in route group.
+        router.replace('/(app)/plan');
+      }
     } catch (err: any) {
       console.log('REAL PRIVY OTP ERROR:', JSON.stringify(err, null, 2));
       setError('Invalid or expired code. Please try again.');

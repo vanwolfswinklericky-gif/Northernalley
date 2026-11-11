@@ -10,7 +10,9 @@
     "ios": {
       "bundleIdentifier": "com.northernalley.app",
       "supportsTablet": true,
-      "associatedDomains": ["webcredentials:your-domain.com"]
+      "associatedDomains": [
+        "webcredentials:your-domain.com"
+      ]
     },
     "android": {
       "package": "com.northernalley.app",
@@ -35,6 +37,12 @@
     ],
     "experiments": {
       "typedRoutes": false
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "636422e0-53d7-4d68-bf6b-cc18832567a0"
+      }
     }
   }
 }

@@ -6,12 +6,12 @@ import { Screen } from '@/components/ui/Screen';
 import { COLORS, SPACING } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  getAllUserEmbeddedEthereumWallets,
-  useDelegatedActions,
+  useEmbeddedEthereumWallet,
+  useHeadlessDelegatedActions,
   usePrivy,
 } from '@privy-io/expo';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 interface ProvisionSignerScreenProps {
   onBack: () => void;
@@ -23,21 +23,29 @@ export function ProvisionSignerScreen({
   onSuccess,
 }: ProvisionSignerScreenProps) {
   const { user, isReady } = usePrivy();
-  const { delegateWallet } = useDelegatedActions();
+  const { wallets } = useEmbeddedEthereumWallet();
+  const { delegateWallet } = useHeadlessDelegatedActions();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Get the user's embedded Ethereum wallets
-  const wallets = getAllUserEmbeddedEthereumWallets(user);
-
-  // Find the primary wallet (index 0)
-  const walletToDelegate = wallets.find((wallet) => wallet.wallet_index === 0);
-
-  // Check if already delegated
-  const isAlreadyDelegated = walletToDelegate?.delegated === true;
+  const walletToDelegate = wallets.find((wallet) => wallet.walletIndex === 0);
+  const isAlreadyDelegated = user?.linked_accounts.some(
+    (account) =>
+      account.type === 'wallet' &&
+      account.chain_type === 'ethereum' &&
+      account.connector_type === 'embedded' &&
+      'wallet_index' in account &&
+      account.wallet_index === 0 &&
+      account.delegated,
+  ) ?? false;
 
   const handleDelegate = async () => {
-    if (!wallet) {
+    if (isAlreadyDelegated) {
+      onSuccess();
+      return;
+    }
+
+    if (!walletToDelegate) {
       setError('Wallet is still loading. Please wait a moment and try again.');
       return;
     }
@@ -51,12 +59,17 @@ export function ProvisionSignerScreen({
         chainType: 'ethereum',
       });
       onSuccess();
-    } catch (err: any) {
-      // User rejected or another error occurred
-      if (err?.message?.includes('rejected') || err?.code === 'ACTION_REJECTED') {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : undefined;
+      const errorCode =
+        typeof err === 'object' && err !== null && 'code' in err
+          ? err.code
+          : undefined;
+
+      if (errorMessage?.includes('rejected') || errorCode === 'ACTION_REJECTED') {
         setError('You declined the request. Automatic investing requires your permission.');
       } else {
-        setError(err?.message || 'Something went wrong. Please try again.');
+        setError(errorMessage || 'Something went wrong. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -64,7 +77,7 @@ export function ProvisionSignerScreen({
   };
 
   // If Privy is still initializing, or we are creating the wallet
-  if (!isReady || !wallet) {
+  if (!isReady || !walletToDelegate) {
     return (
       <Screen onBack={onBack}>
         <View style={styles.loadingContainer}>
@@ -84,7 +97,7 @@ export function ProvisionSignerScreen({
       footer={
         <View style={styles.footer}>
           <Button
-            label="Enable Automatic Investing"
+            label={isAlreadyDelegated ? 'Continue' : 'Enable Automatic Investing'}
             variant="accent"
             loading={loading}
             onPress={handleDelegate}
@@ -147,6 +160,15 @@ const styles = StyleSheet.create({
   footer: {
     paddingBottom: 40,
     gap: 12,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: COLORS.t2,
+    marginTop: SPACING.s3,
   },
   card: {
     marginBottom: 16,

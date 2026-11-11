@@ -12,12 +12,26 @@ export default async function handler(req, res) {
   let body = req.body;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
   
-  // Added name, avatarUrl, and pushToken. Removed phone.
-  const { email, password, privyUserId, walletAddress, name, avatarUrl, pushToken } = body || {};
+  const { email, password, privyUserId, walletAddress, name, avatarUrl } = body || {};
 
   try {
     // -----------------------------------------------------
-    // ROUTE: Sync User
+    // ROUTE: Check if user exists
+    // -----------------------------------------------------
+    if (pathname === '/auth/check-user') {
+      if (!email) return res.status(400).json({ message: 'Email is required' });
+      const normalizedEmail = email.toLowerCase();
+
+      const result = await pool.query(
+        `SELECT 1 FROM user_credentials WHERE email = $1 LIMIT 1`,
+        [normalizedEmail]
+      );
+
+      return res.status(200).json({ exists: result.rows.length > 0 });
+    }
+
+    // -----------------------------------------------------
+    // ROUTE: Sync User (with New User Detection)
     // -----------------------------------------------------
     if (pathname === '/auth/sync-user') {
       if (!privyUserId) return res.status(400).json({ error: 'privyUserId is required' });
@@ -31,10 +45,17 @@ export default async function handler(req, res) {
             wallet_address = COALESCE(EXCLUDED.wallet_address, users.wallet_address),
             name = COALESCE(EXCLUDED.name, users.name),
             avatar_url = COALESCE(EXCLUDED.avatar_url, users.avatar_url)
-         RETURNING *`,
+         RETURNING *, (xmax = 0) AS is_new_user`,
         [privyUserId, email || null, walletAddress || null, name || null, avatarUrl || null]
       );
-      return res.status(200).json({ user: result.rows[0] });
+      
+      const userRow = result.rows[0];
+      const isNewUser = userRow.is_new_user;
+      
+      // Remove the postgres-specific flag from the user object before sending
+      delete userRow.is_new_user; 
+
+      return res.status(200).json({ user: userRow, isNewUser });
     }
 
     // -----------------------------------------------------
@@ -74,12 +95,11 @@ export default async function handler(req, res) {
     }
 
     // -----------------------------------------------------
-    // ROUTE: Sign Out (Clear Push Token)
+    // ROUTE: Sign Out
     // -----------------------------------------------------
     if (pathname === '/auth/signout') {
       if (!privyUserId) return res.status(400).json({ error: 'privyUserId is required' });
 
-      // Clear the push token so they stop getting notifications on this device
       await pool.query(
         `UPDATE users SET push_token = NULL WHERE privy_user_id = $1`,
         [privyUserId]

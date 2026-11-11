@@ -58,7 +58,8 @@ export function CreateAccountScreen({ onBack }: { onBack: () => void }) {
       // 2. Then trigger Privy OTP
       await sendCode({ email });
 
-      router.replace('/(auth)/verify-otp');
+      // 3. Route to OTP screen and pass flow='signup'
+      router.replace({ pathname: '/(auth)/verify-otp', params: { flow: 'signup' } });
     } catch (err: any) {
       setError(err.message || 'Failed to create account.');
     } finally {
