@@ -26,7 +26,7 @@ export function EmailScreen() {
   const { sendCode } = useLoginWithEmail();
 
   const { login: loginWithGoogle } = useLoginWithOAuth({
-    onSuccess: () => router.replace('/(auth)/plan'),
+    onSuccess: () => router.replace('/(app)/(tabs)/dashboard'),
     onError: (err) => {
       setError(err.message || 'Google sign in failed');
       setGoogleLoading(false);
@@ -66,7 +66,7 @@ export function EmailScreen() {
       setEmail(normalizedEmail);
       await sendCode({ email: normalizedEmail });
 
-      router.push('/(auth)/verify-otp');
+      router.push({ pathname: '/(auth)/verify-otp', params: { flow: 'login' } });
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Try again.');
     } finally {

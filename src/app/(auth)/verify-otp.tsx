@@ -1,9 +1,10 @@
 // src/app/(auth)/verify-otp.tsx
 
 import { OtpScreen } from '@/screens/auth/OtpScreen';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 export default function VerifyOtpRoute() {
   const router = useRouter();
-  return <OtpScreen onBack={() => router.back()} />;
+  const { flow } = useLocalSearchParams<{ flow?: string }>();
+  return <OtpScreen onBack={() => router.back()} isLoginFlow={flow === 'login'} />;
 }

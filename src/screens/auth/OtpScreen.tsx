@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-export function OtpScreen({ onBack }: { onBack: () => void }) {
+export function OtpScreen({ onBack, isLoginFlow = false }: { onBack: () => void; isLoginFlow?: boolean }) {
   const router = useRouter();
   const email = usePlanStore((s) => s.email);
   const wallet = useEmbeddedWallet();
@@ -41,8 +41,8 @@ export function OtpScreen({ onBack }: { onBack: () => void }) {
     setError(null);
 
     try {
-      await loginWithCode({ code, email });
-      router.replace('/(auth)/plan');
+      await loginWithCode({ code, email: email ?? undefined });
+      router.replace(isLoginFlow ? '/(app)/(tabs)/dashboard' : '/(auth)/plan');
     } catch (err: any) {
       console.log('REAL PRIVY OTP ERROR:', JSON.stringify(err, null, 2));
       setError('Invalid or expired code. Please try again.');

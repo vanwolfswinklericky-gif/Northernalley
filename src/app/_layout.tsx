@@ -59,9 +59,8 @@ function RootNavigator() {
   // 4. Render the navigation stack
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: COLORS.bg } }}>
-      {/* Logged out: Welcome + Auth (Login/OTP) */}
+      {/* Logged out: Auth (Login/OTP) */}
       <Stack.Protected guard={!loggedIn}>
-        <Stack.Screen name="(welcome)" />
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
 
@@ -70,9 +69,8 @@ function RootNavigator() {
         <Stack.Screen name="(auth)/recovery" />
       </Stack.Protected>
 
-      {/* Logged in, wallet ready: Onboarding + Main App */}
+      {/* Logged in, wallet ready: Main App */}
       <Stack.Protected guard={loggedIn && walletReady}>
-        <Stack.Screen name="(onboarding)" />
         <Stack.Screen name="(app)" />
       </Stack.Protected>
     </Stack>

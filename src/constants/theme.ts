@@ -13,9 +13,12 @@ export const COLORS = {
   upSoft: '#DCFCE7',
   downSoft: '#FEE2E2',
   danger: '#DC2626',
-  accent: '#6366F1',
-  accentSoft: '#EEF2FF',
-  accentText: '#4338CA',
+  
+  // --- UPDATED COLORS ---
+  accent: '#4F46E5',       // A slightly deeper, richer blue
+  accentSoft: '#EEF2FF',   // Very light blue for backgrounds
+  accentMedium: '#C7D2FE', // Medium blue for borders/inactive states
+  accentText: '#4338CA',   // Dark blue for text
 } as const;
 
 export const SPACING = {

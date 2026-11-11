@@ -2,38 +2,39 @@
   "expo": {
     "name": "Northernalley",
     "slug": "northernalley",
-    "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./src/assets/images/splash-logo.png",
-          "imageWidth": 240,
-          "resizeMode": "contain",
-          "backgroundColor": "#000000",
-          "dark": {
-            "image": "./src/assets/images/splash-logo.png",
-            "backgroundColor": "#000000"
-          }
-        }
-      ]
-    ],
+    "scheme": "northernalley",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
     "ios": {
       "bundleIdentifier": "com.northernalley.app",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "associatedDomains": ["webcredentials:your-domain.com"]
     },
     "android": {
       "package": "com.northernalley.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./src/assets/images/splash-logo.png",
+        "foregroundImage": "./assets/images/splash-logo.png",
         "backgroundColor": "#000000"
       }
     },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "1b5c1af0-930c-4c81-a0ed-da8db8700b93"
-      }
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-logo.png",
+          "imageWidth": 240,
+          "resizeMode": "contain",
+          "backgroundColor": "#000000"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
     }
   }
 }
