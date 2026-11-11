@@ -7,8 +7,8 @@ import { COLORS, SPACING } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import {
   useEmbeddedEthereumWallet,
-  useHeadlessDelegatedActions,
   usePrivy,
+  useSessionSigners,
 } from '@privy-io/expo';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
@@ -24,11 +24,14 @@ export function ProvisionSignerScreen({
 }: ProvisionSignerScreenProps) {
   const { user, isReady } = usePrivy();
   const { wallets } = useEmbeddedEthereumWallet();
-  const { delegateWallet } = useHeadlessDelegatedActions();
+  const { addSessionSigner } = useSessionSigners();
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const walletToDelegate = wallets.find((wallet) => wallet.walletIndex === 0);
+  
+  // Check if the wallet already has a session signer active
   const isAlreadyDelegated = user?.linked_accounts.some(
     (account) =>
       account.type === 'wallet' &&
@@ -54,9 +57,11 @@ export function ProvisionSignerScreen({
     setError(null);
 
     try {
-      await delegateWallet({
+      // Use addSessionSigner for TEE wallets
+      await addSessionSigner({
         address: walletToDelegate.address,
-        chainType: 'ethereum',
+        signerId: process.env.EXPO_PUBLIC_PRIVY_SIGNER_ID!, // Set this in your .env
+        policyIds: [process.env.EXPO_PUBLIC_PRIVY_POLICY_ID!], // Set this in your .env
       });
       onSuccess();
     } catch (err: unknown) {
@@ -76,7 +81,6 @@ export function ProvisionSignerScreen({
     }
   };
 
-  // If Privy is still initializing, or we are creating the wallet
   if (!isReady || !walletToDelegate) {
     return (
       <Screen onBack={onBack}>

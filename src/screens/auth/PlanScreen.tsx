@@ -6,7 +6,7 @@ import { Screen } from '@/components/ui/Screen';
 import { COLORS, SPACING } from '@/constants/theme';
 import { usePlanStore } from '@/store/planStore';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface PlanScreenProps {
@@ -54,7 +54,7 @@ const PLANS: PlanDef[] = [
     name: 'Pro',
     price: 39.99,
     tagline: 'For active investors',
-    highlights: ['3 active baskets', 'Weekly DCA', 'Custom basket builder', 'Tax report (CSV)', 'Priority support (12h)'],
+    highlights: ['3 active baskets', 'Weekly DCA included', 'Custom basket builder', 'Tax report (CSV)', 'Priority support (12h)'],
     recommended: true,
     details: [
       { label: 'Active baskets', value: '3', included: true },
@@ -72,7 +72,7 @@ const PLANS: PlanDef[] = [
     name: 'Premium',
     price: 79.99,
     tagline: 'For serious portfolios',
-    highlights: ['Unlimited baskets', 'Daily DCA', 'Instant buy included', 'Priority support (4h)', 'Concierge onboarding'],
+    highlights: ['Unlimited baskets', 'Daily DCA included', 'Instant buy included', 'Priority support (4h)', 'Concierge onboarding'],
     details: [
       { label: 'Active baskets', value: 'Unlimited', included: true },
       { label: 'DCA frequency', value: 'Daily', included: true },
@@ -90,21 +90,30 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
   const [selected, setSelected] = useState<'starter' | 'pro' | 'premium'>('pro');
   const [expanded, setExpanded] = useState<string | null>(null);
   
-  // Get add-ons state from the store
-  const { addOns, toggleAddOn } = usePlanStore();
+  const { addOns, toggleAddOn, setAddOns } = usePlanStore();
+
+  // Automatically toggle Weekly DCA off if Pro/Premium is selected
+  useEffect(() => {
+    if ((selected === 'pro' || selected === 'premium') && addOns.weeklyDca) {
+      setAddOns({ ...addOns, weeklyDca: false });
+    }
+  }, [selected, addOns, setAddOns]);
 
   const toggleExpand = (id: string) => {
     setExpanded((current) => (current === id ? null : id));
   };
 
-  // Calculate dynamic total price based on selected plan and add-ons
   const selectedPlanObj = PLANS.find((p) => p.id === selected);
   const basePrice = selectedPlanObj ? selectedPlanObj.price : 0;
+  
+  // Calculate add-on price
   const addOnPrice = 
     (addOns.extraBasket ? 4.99 : 0) + 
     (addOns.weeklyDca ? 7.99 : 0) + 
     (addOns.prioritySupport ? 9.99 : 0);
   const totalPrice = basePrice + addOnPrice;
+
+  const isWeeklyDcaIncluded = selected === 'pro' || selected === 'premium';
 
   return (
     <Screen
@@ -127,7 +136,6 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
         </View>
       }
     >
-      {/* 1. Main Plans List */}
       {PLANS.map((plan) => {
         const isSelected = selected === plan.id;
         const isExpanded = expanded === plan.id;
@@ -166,6 +174,66 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
                   ))}
                 </View>
 
+                {/* INLINE ADD-ONS */}
+                <View style={styles.inlineAddOns}>
+                  <Text style={styles.inlineAddOnsTitle}>Optional Add-ons</Text>
+                  
+                  {/* Extra Basket Addon */}
+                  <Pressable 
+                    style={[styles.inlineAddOnRow, addOns.extraBasket && styles.inlineAddOnRowActive]} 
+                    onPress={() => toggleAddOn('extraBasket')}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.addOnText}>Extra Basket</Text>
+                    </View>
+                    <Text style={styles.addOnPriceText}>+$4.99</Text>
+                    <View style={[styles.plusBtn, addOns.extraBasket && styles.plusBtnActive]}>
+                      <Ionicons name={addOns.extraBasket ? "checkmark" : "add"} size={14} color={addOns.extraBasket ? "#fff" : COLORS.accent} />
+                    </View>
+                  </Pressable>
+
+                  {/* Weekly DCA Addon */}
+                  <Pressable 
+                    style={[
+                      styles.inlineAddOnRow, 
+                      isWeeklyDcaIncluded && { opacity: 0.6, backgroundColor: COLORS.soft },
+                      !isWeeklyDcaIncluded && addOns.weeklyDca && styles.inlineAddOnRowActive
+                    ]} 
+                    onPress={() => !isWeeklyDcaIncluded && toggleAddOn('weeklyDca')}
+                    disabled={isWeeklyDcaIncluded}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.addOnText, isWeeklyDcaIncluded && { textDecorationLine: 'line-through' }]}>
+                        Weekly DCA {isWeeklyDcaIncluded && "(Included)"}
+                      </Text>
+                    </View>
+                    {!isWeeklyDcaIncluded ? (
+                      <>
+                        <Text style={styles.addOnPriceText}>+$7.99</Text>
+                        <View style={[styles.plusBtn, addOns.weeklyDca && styles.plusBtnActive]}>
+                          <Ionicons name={addOns.weeklyDca ? "checkmark" : "add"} size={14} color={addOns.weeklyDca ? "#fff" : COLORS.accent} />
+                        </View>
+                      </>
+                    ) : (
+                      <Ionicons name="checkmark-circle" size={20} color={COLORS.up} />
+                    )}
+                  </Pressable>
+
+                  {/* Priority Support Addon */}
+                  <Pressable 
+                    style={[styles.inlineAddOnRow, addOns.prioritySupport && styles.inlineAddOnRowActive]} 
+                    onPress={() => toggleAddOn('prioritySupport')}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.addOnText}>Priority Support</Text>
+                    </View>
+                    <Text style={styles.addOnPriceText}>+$9.99</Text>
+                    <View style={[styles.plusBtn, addOns.prioritySupport && styles.plusBtnActive]}>
+                      <Ionicons name={addOns.prioritySupport ? "checkmark" : "add"} size={14} color={addOns.prioritySupport ? "#fff" : COLORS.accent} />
+                    </View>
+                  </Pressable>
+                </View>
+
                 <Pressable onPress={() => toggleExpand(plan.id)} style={styles.expandRow}>
                   <Text style={styles.expandText}>{isExpanded ? 'Hide details' : 'See full details'}</Text>
                   <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.accent} />
@@ -187,59 +255,6 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
         );
       })}
 
-      {/* 2. Add-ons Section */}
-      <View style={styles.addOnsSection}>
-        <Text style={styles.addOnsTitle}>Optional Add-ons</Text>
-        
-        <Pressable 
-          style={[styles.addOnRow, addOns.extraBasket && styles.addOnRowActive]} 
-          onPress={() => toggleAddOn('extraBasket')}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={styles.addOnName}>Extra Basket</Text>
-            <Text style={styles.addOnDesc}>Run multiple baskets simultaneously</Text>
-          </View>
-          <Text style={styles.addOnPrice}>+$4.99/mo</Text>
-          <Ionicons 
-            name={addOns.extraBasket ? "checkbox" : "square-outline"} 
-            size={24} 
-            color={addOns.extraBasket ? COLORS.accent : COLORS.t3} 
-          />
-        </Pressable>
-
-        <Pressable 
-          style={[styles.addOnRow, addOns.weeklyDca && styles.addOnRowActive]} 
-          onPress={() => toggleAddOn('weeklyDca')}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={styles.addOnName}>Weekly DCA</Text>
-            <Text style={styles.addOnDesc}>Invest every week instead of monthly</Text>
-          </View>
-          <Text style={styles.addOnPrice}>+$7.99/mo</Text>
-          <Ionicons 
-            name={addOns.weeklyDca ? "checkbox" : "square-outline"} 
-            size={24} 
-            color={addOns.weeklyDca ? COLORS.accent : COLORS.t3} 
-          />
-        </Pressable>
-
-        <Pressable 
-          style={[styles.addOnRow, addOns.prioritySupport && styles.addOnRowActive]} 
-          onPress={() => toggleAddOn('prioritySupport')}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={styles.addOnName}>Priority Support</Text>
-            <Text style={styles.addOnDesc}>4-hour response time from our team</Text>
-          </View>
-          <Text style={styles.addOnPrice}>+$9.99/mo</Text>
-          <Ionicons 
-            name={addOns.prioritySupport ? "checkbox" : "square-outline"} 
-            size={24} 
-            color={addOns.prioritySupport ? COLORS.accent : COLORS.t3} 
-          />
-        </Pressable>
-      </View>
-
       <Text style={styles.note}>
         All plans include a free 7-day trial. Cancel anytime from Settings.
       </Text>
@@ -250,7 +265,7 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
 const styles = StyleSheet.create({
   cardWrap: { marginBottom: 12 },
   card: {},
-  cardSelected: { borderColor: COLORS.accent },
+  cardSelected: { borderColor: COLORS.accent, borderWidth: 2 },
   badge: {
     alignSelf: 'flex-start',
     backgroundColor: COLORS.accentSoft,
@@ -313,47 +328,56 @@ const styles = StyleSheet.create({
   detailValueMuted: { color: COLORS.t3, fontWeight: '500' },
   note: { fontSize: 12, color: COLORS.t3, textAlign: 'center', marginTop: SPACING.s3, paddingHorizontal: SPACING.s4, lineHeight: 18 },
 
-  // Add-ons Styles
-  addOnsSection: {
-    marginTop: 32,
-    marginBottom: 16,
+  // Inline Add-ons Styles
+  inlineAddOns: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.line,
+    gap: 8,
   },
-  addOnsTitle: {
-    fontSize: 18,
+  inlineAddOnsTitle: {
+    fontSize: 13,
     fontWeight: '600',
-    color: COLORS.t1,
-    marginBottom: 16,
+    color: COLORS.t2,
+    marginBottom: 4,
   },
-  addOnRow: {
+  inlineAddOnRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.card,
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 8,
+    backgroundColor: COLORS.bg,
+    padding: 12,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.line,
+    borderColor: 'transparent',
     gap: 12,
   },
-  addOnRowActive: {
-    borderColor: COLORS.accent,
+  inlineAddOnRowActive: {
     backgroundColor: COLORS.accentSoft,
+    borderColor: COLORS.accentMedium,
   },
-  addOnName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.t1,
-  },
-  addOnDesc: {
-    fontSize: 13,
-    color: COLORS.t2,
-    marginTop: 2,
-  },
-  addOnPrice: {
+  addOnText: {
     fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.accentText, // Blue text for add-on features
+  },
+  addOnPriceText: {
+    fontSize: 13,
     fontWeight: '600',
-    color: COLORS.t1,
-    marginLeft: 'auto',
+    color: COLORS.accentText,
+  },
+  plusBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLORS.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+  },
+  plusBtnActive: {
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
   },
 });
