@@ -6,9 +6,9 @@ import { Screen } from '@/components/ui/Screen';
 import { COLORS, SPACING } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  useEmbeddedEthereumWallet,
+  useAuthorizationContext,
+  useEmbeddedEthereumWallet, // <-- THE CORRECT HOOK FOR v0.76.5
   usePrivy,
-  useSessionSigners,
 } from '@privy-io/expo';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
@@ -24,14 +24,14 @@ export function ProvisionSignerScreen({
 }: ProvisionSignerScreenProps) {
   const { user, isReady } = usePrivy();
   const { wallets } = useEmbeddedEthereumWallet();
-  const { addSessionSigner } = useSessionSigners();
+  
+  // Using the correct hook from v0.76.5
+  const { addSigner } = useAuthorizationContext();
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const walletToDelegate = wallets.find((wallet) => wallet.walletIndex === 0);
-  
-  // Check if the wallet already has a session signer active
   const isAlreadyDelegated = user?.linked_accounts.some(
     (account) =>
       account.type === 'wallet' &&
@@ -57,25 +57,17 @@ export function ProvisionSignerScreen({
     setError(null);
 
     try {
-      // Use addSessionSigner for TEE wallets
-      await addSessionSigner({
+      await addSigner({
         address: walletToDelegate.address,
-        signerId: process.env.EXPO_PUBLIC_PRIVY_SIGNER_ID!, // Set this in your .env
-        policyIds: [process.env.EXPO_PUBLIC_PRIVY_POLICY_ID!], // Set this in your .env
+        signerId: process.env.EXPO_PUBLIC_PRIVY_SIGNER_ID!,
+        policyIds: process.env.EXPO_PUBLIC_PRIVY_POLICY_ID 
+          ? [process.env.EXPO_PUBLIC_PRIVY_POLICY_ID] 
+          : [],
       });
       onSuccess();
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : undefined;
-      const errorCode =
-        typeof err === 'object' && err !== null && 'code' in err
-          ? err.code
-          : undefined;
-
-      if (errorMessage?.includes('rejected') || errorCode === 'ACTION_REJECTED') {
-        setError('You declined the request. Automatic investing requires your permission.');
-      } else {
-        setError(errorMessage || 'Something went wrong. Please try again.');
-      }
+      setError(errorMessage || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -176,6 +168,7 @@ const styles = StyleSheet.create({
   },
   card: {
     marginBottom: 16,
+    alignItems: 'center',
   },
   iconWrap: {
     width: 64,
@@ -184,7 +177,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
     marginBottom: SPACING.s3,
   },
   heading: {
@@ -196,6 +188,7 @@ const styles = StyleSheet.create({
   },
   bulletList: {
     gap: 12,
+    width: '100%',
   },
   bullet: {
     flexDirection: 'row',
