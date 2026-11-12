@@ -6,9 +6,9 @@ import { Screen } from '@/components/ui/Screen';
 import { COLORS, SPACING } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  useAuthorizationContext,
-  useEmbeddedEthereumWallet, // <-- THE CORRECT HOOK FOR v0.76.5
+  useEmbeddedEthereumWallet,
   usePrivy,
+  useSigners,
 } from '@privy-io/expo';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
@@ -25,8 +25,7 @@ export function ProvisionSignerScreen({
   const { user, isReady } = usePrivy();
   const { wallets } = useEmbeddedEthereumWallet();
   
-  // Using the correct hook from v0.76.5
-  const { addSigner } = useAuthorizationContext();
+  const { addSigners } = useSigners();
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,16 +52,26 @@ export function ProvisionSignerScreen({
       return;
     }
 
+    const signerId = process.env.EXPO_PUBLIC_PRIVY_SIGNER_ID;
+    if (!signerId) {
+      setError('Automatic investing is not configured. Please contact support.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      await addSigner({
+      await addSigners({
         address: walletToDelegate.address,
-        signerId: process.env.EXPO_PUBLIC_PRIVY_SIGNER_ID!,
-        policyIds: process.env.EXPO_PUBLIC_PRIVY_POLICY_ID 
-          ? [process.env.EXPO_PUBLIC_PRIVY_POLICY_ID] 
-          : [],
+        signers: [
+          {
+            signerId,
+            policyIds: process.env.EXPO_PUBLIC_PRIVY_POLICY_ID
+              ? [process.env.EXPO_PUBLIC_PRIVY_POLICY_ID]
+              : [],
+          },
+        ],
       });
       onSuccess();
     } catch (err: unknown) {
