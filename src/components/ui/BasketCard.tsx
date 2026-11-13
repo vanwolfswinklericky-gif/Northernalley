@@ -2,8 +2,8 @@
 
 import { CoinBadge } from '@/components/ui/CoinBadge';
 import { Container } from '@/components/ui/Container';
-import type { Basket } from '@/constants/baskets';
 import { COLORS, SPACING } from '@/constants/theme';
+import type { Basket } from '@/types/basket';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -18,10 +18,10 @@ export function BasketCard({ basket, selected, onPress }: BasketCardProps) {
     <Container onPress={onPress} selected={selected} style={{ marginBottom: 12 }}>
       <View style={styles.top}>
         <View style={styles.stack}>
-          {basket.coins.slice(0, 3).map((c, i) => (
+          {basket.coins.slice(0, 3).map(({ symbol }, i) => (
             <CoinBadge
-              key={c}
-              symbol={c}
+              key={`${symbol}-${i}`}
+              symbol={symbol}
               size={32}
               style={{
                 marginLeft: i ? -10 : 0,
@@ -38,9 +38,7 @@ export function BasketCard({ basket, selected, onPress }: BasketCardProps) {
       <Text style={styles.title}>{basket.name}</Text>
       <Text style={styles.desc}>{basket.description}</Text>
       <View style={styles.meta}>
-        <Text style={styles.metaText}>{basket.assets} assets</Text>
-        <View style={styles.dot} />
-        <Text style={styles.metaText}>{basket.risk}</Text>
+        <Text style={styles.metaText}>{basket.coins.length} assets</Text>
       </View>
     </Container>
   );
@@ -89,11 +87,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.t3,
     fontWeight: '500',
-  },
-  dot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: COLORS.t3,
   },
 });

@@ -2,17 +2,12 @@
 
 import { usePrivy } from '@privy-io/expo';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Basket } from '@/types/basket';
+import { parseBasketCoins } from '@/utils/parseBasketCoins';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://northernalley.vercel.app';
 
-export interface Basket {
-  id: string;
-  slug?: string;
-  name: string;
-  description: string;
-  type: 'prebuilt' | 'custom';
-  coins: { symbol: string; weight: number }[];
-}
+export type { Basket } from '@/types/basket';
 
 interface BasketsResponse {
   baskets: Basket[];
@@ -29,7 +24,20 @@ export function useBaskets() {
     queryFn: async (): Promise<BasketsResponse> => {
       const res = await fetch(`${API_URL}/api/baskets?privyUserId=${user!.id}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
+      const data: Omit<BasketsResponse, 'baskets'> & {
+        baskets: (Omit<Basket, 'coins'> & { coins: unknown })[];
+      } = await res.json();
+      if (!Array.isArray(data.baskets)) {
+        throw new Error('Invalid baskets response: expected a baskets array.');
+      }
+
+      return {
+        ...data,
+        baskets: data.baskets.map((basket) => ({
+          ...basket,
+          coins: parseBasketCoins(basket.coins),
+        })),
+      };
     },
     enabled: !!user?.id,
     staleTime: 60_000,

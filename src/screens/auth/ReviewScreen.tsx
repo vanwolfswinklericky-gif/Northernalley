@@ -5,7 +5,7 @@ import { CoinBadge } from '@/components/ui/CoinBadge';
 import { Container } from '@/components/ui/Container';
 import { Screen } from '@/components/ui/Screen';
 import { SummaryRows } from '@/components/ui/SummaryRows';
-import { basketById, FEE_RATE, fmtUSD } from '@/constants/baskets';
+import { FEE_RATE, fmtUSD } from '@/constants/baskets';
 import { COLORS } from '@/constants/theme';
 import { usePlanStore } from '@/store/planStore';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,9 +17,11 @@ interface ReviewScreenProps {
 }
 
 export function ReviewScreen({ onBack, onContinue }: ReviewScreenProps) {
-  const { basketId, amount } = usePlanStore();
-  const b = basketById(basketId);
+  const { selectedBasket, amount, frequency } = usePlanStore();
   const fee = (amount ?? 0) * FEE_RATE;
+  const coinSummary = selectedBasket?.coins
+    .map(({ symbol, weight }) => (weight > 0 ? `${symbol} ${Math.round(weight * 100)}%` : symbol))
+    .join(' · ');
 
   return (
     <Screen
@@ -32,28 +34,26 @@ export function ReviewScreen({ onBack, onContinue }: ReviewScreenProps) {
       <Container>
         <View style={styles.head}>
           <View style={styles.stack}>
-            {b.coins.slice(0, 3).map((c, i) => (
+            {(selectedBasket?.coins ?? []).slice(0, 3).map(({ symbol }, i) => (
               <CoinBadge
-                key={c}
-                symbol={c}
+                key={`${symbol}-${i}`}
+                symbol={symbol}
                 size={36}
                 style={{ marginLeft: i ? -12 : 0, borderWidth: 2, borderColor: '#fff' }}
               />
             ))}
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.name}>{b.name}</Text>
-            <Text style={styles.meta}>
-              {b.assets} assets · {b.risk}
-            </Text>
+            <Text style={styles.name}>{selectedBasket?.name ?? 'No basket selected'}</Text>
+            <Text style={styles.meta}>{coinSummary || 'No coins listed'}</Text>
           </View>
         </View>
 
         <SummaryRows
           rows={[
-            ['Basket', b.name],
+            ['Basket', selectedBasket?.name ?? 'No basket selected'],
             ['Amount', fmtUSD(amount ?? 0)],
-            ['Frequency', 'Monthly'],
+            ['Frequency', frequency === 'monthly' ? 'Monthly' : 'Weekly'],
             ['First buy', 'Today'],
             ['Next buy', 'Nov 7, 2026'],
           ]}

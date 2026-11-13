@@ -9,8 +9,8 @@ export default function AppBasketsRoute() {
   return (
     <BasketsScreen
       onBack={() => router.back()}
-      onContinue={(basketId) => {
-        setBasket(basketId);
+      onContinue={(basket) => {
+        setBasket(basket);
         router.push('/(app)/amount');
       }}
       onCreateCustom={() => router.push('/(app)/create-basket')}

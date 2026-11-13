@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Container } from '@/components/ui/Container';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS, SPACING } from '@/constants/theme';
-import { useBaskets } from '@/hooks/useBaskets';
+import { useBaskets, type Basket } from '@/hooks/useBaskets';
 import { usePlanStore } from '@/store/planStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
@@ -13,7 +13,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 interface BasketsScreenProps {
   onBack: () => void;
-  onContinue: (basketId: string) => void;
+  onContinue: (basket: Basket) => void;
   onCreateCustom: () => void;
 }
 
@@ -76,14 +76,19 @@ export function BasketsScreen({ onBack, onContinue, onCreateCustom }: BasketsScr
         <Button
           label="Continue"
           disabled={!selectedId}
-          onPress={() => selectedId && onContinue(selectedId)}
+          onPress={() => {
+            const selectedBasket = baskets.find((basket) => basket.id === selectedId);
+            if (selectedBasket) {
+              onContinue(selectedBasket);
+            }
+          }}
         />
       }
     >
       {baskets.map((b) => (
         <BasketCard
           key={b.id}
-          basket={b as any}
+          basket={b}
           selected={selectedId === b.id}
           onPress={() => setSelectedId(b.id)}
         />

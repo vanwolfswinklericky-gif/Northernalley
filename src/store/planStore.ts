@@ -1,6 +1,7 @@
 // src/store/planStore.ts
 
 import { create } from 'zustand';
+import type { Basket } from '@/types/basket';
 
 export type SubscriptionPlan = 'starter' | 'pro' | 'premium';
 
@@ -20,6 +21,7 @@ const initialAddOns: AddOns = {
 
 interface PlanState {
   basketId: string | null;
+  selectedBasket: Basket | null;
   amount: number | null;
   frequency: 'monthly' | 'weekly';
   email: string | null;
@@ -27,7 +29,7 @@ interface PlanState {
   currency: string; // Supports all ISO 4217 currency codes
   addOns: AddOns;
 
-  setBasket: (basketId: string) => void;
+  setBasket: (basket: Basket) => void;
   setAmount: (amount: number) => void;
   setFrequency: (frequency: 'monthly' | 'weekly') => void;
   setEmail: (email: string) => void;
@@ -39,6 +41,7 @@ interface PlanState {
 
 const initialState = {
   basketId: null,
+  selectedBasket: null,
   amount: null,
   frequency: 'monthly' as const,
   email: null,
@@ -50,7 +53,7 @@ const initialState = {
 export const usePlanStore = create<PlanState>((set) => ({
   ...initialState,
 
-  setBasket: (basketId) => set({ basketId }),
+  setBasket: (selectedBasket) => set({ basketId: selectedBasket.id, selectedBasket }),
   setAmount: (amount) => set({ amount }),
   setFrequency: (frequency) => set({ frequency }),
   setEmail: (email) => set({ email }),

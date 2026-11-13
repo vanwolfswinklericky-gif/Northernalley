@@ -16,7 +16,7 @@ export default function PaymentRoute() {
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
-    if (!user?.id || !plan) {
+    if (!user?.id || !plan || !basketId || !amount) {
       Alert.alert('Missing Info', 'Please ensure you have selected a plan and basket.');
       return;
     }

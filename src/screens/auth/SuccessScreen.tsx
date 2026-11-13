@@ -5,7 +5,7 @@ import { Container } from '@/components/ui/Container';
 import { Screen } from '@/components/ui/Screen';
 import { StatusCircle } from '@/components/ui/StatusCircle';
 import { SummaryRows } from '@/components/ui/SummaryRows';
-import { basketById, fmtUSD } from '@/constants/baskets';
+import { fmtUSD } from '@/constants/baskets';
 import { COLORS, TYPE } from '@/constants/theme';
 import { usePlanStore } from '@/store/planStore';
 import { StyleSheet, Text, View } from 'react-native';
@@ -15,8 +15,7 @@ interface SuccessScreenProps {
 }
 
 export function SuccessScreen({ onGoToDashboard }: SuccessScreenProps) {
-  const { basketId, amount, email, reset } = usePlanStore();
-  const b = basketById(basketId);
+  const { selectedBasket, amount, email, reset } = usePlanStore();
 
   const handleDone = () => {
     reset(); // Clears the plan store so the next purchase is fresh
@@ -36,7 +35,7 @@ export function SuccessScreen({ onGoToDashboard }: SuccessScreenProps) {
       <Container>
         <SummaryRows
           rows={[
-            ['Basket', b.name],
+            ['Basket', selectedBasket?.name ?? 'Selected basket'],
             ['Monthly amount', fmtUSD(amount ?? 0)],
             ['Next buy', 'In 1 month'],
             ['Receipt sent to', email ?? 'your email'],

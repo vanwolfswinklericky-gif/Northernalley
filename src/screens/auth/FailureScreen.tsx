@@ -5,7 +5,7 @@ import { Container } from '@/components/ui/Container';
 import { Screen } from '@/components/ui/Screen';
 import { StatusCircle } from '@/components/ui/StatusCircle';
 import { SummaryRows } from '@/components/ui/SummaryRows';
-import { basketById, fmtUSD } from '@/constants/baskets';
+import { fmtUSD } from '@/constants/baskets';
 import { COLORS, SPACING, TYPE } from '@/constants/theme';
 import { usePlanStore } from '@/store/planStore';
 import { StyleSheet, Text, View } from 'react-native';
@@ -23,8 +23,7 @@ const FAIL_CASES = [
 ];
 
 export function FailureScreen({ onRetry, onChangeAmount, failIndex = 0 }: FailureScreenProps) {
-  const { basketId, amount } = usePlanStore();
-  const b = basketById(basketId);
+  const { selectedBasket, amount, frequency } = usePlanStore();
   const error = FAIL_CASES[failIndex % FAIL_CASES.length];
 
   return (
@@ -46,9 +45,9 @@ export function FailureScreen({ onRetry, onChangeAmount, failIndex = 0 }: Failur
         <Text style={styles.planLabel}>Your plan</Text>
         <SummaryRows
           rows={[
-            ['Basket', b.name],
+            ['Basket', selectedBasket?.name ?? 'Selected basket'],
             ['Amount', fmtUSD(amount ?? 0)],
-            ['Frequency', 'Monthly'],
+            ['Frequency', frequency === 'monthly' ? 'Monthly' : 'Weekly'],
           ]}
         />
       </Container>

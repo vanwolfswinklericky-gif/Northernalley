@@ -11,8 +11,8 @@ export default function BasketsRoute() {
   return (
     <BasketsScreen
       onBack={() => router.back()}
-      onContinue={(basketId) => {
-        setBasket(basketId);
+      onContinue={(basket) => {
+        setBasket(basket);
         router.push('/(auth)/amount');
       }}
       onCreateCustom={() => router.push('/(auth)/create-basket')}

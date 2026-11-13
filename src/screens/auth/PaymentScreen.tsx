@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Container } from '@/components/ui/Container';
 import { Screen } from '@/components/ui/Screen';
 import { SummaryRows } from '@/components/ui/SummaryRows';
-import { basketById, fmtUSD } from '@/constants/baskets';
+import { fmtUSD } from '@/constants/baskets';
 import { COLORS } from '@/constants/theme';
 import { usePlanStore } from '@/store/planStore';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,8 +17,7 @@ interface PaymentScreenProps {
 }
 
 export function PaymentScreen({ onBack, onSuccess, loading }: PaymentScreenProps) {
-  const { basketId, amount, plan } = usePlanStore();
-  const b = basketById(basketId);
+  const { selectedBasket, amount, plan, frequency, addOns } = usePlanStore();
 
   const planPrices: Record<string, number> = {
     starter: 19.99,
@@ -26,6 +25,11 @@ export function PaymentScreen({ onBack, onSuccess, loading }: PaymentScreenProps
     premium: 79.99,
   };
   const planPrice = plan ? planPrices[plan] ?? 0 : 0;
+  const addOnPrice =
+    (addOns.extraBasket ? 4.99 : 0) +
+    (addOns.weeklyDca && plan === 'starter' ? 7.99 : 0) +
+    (addOns.prioritySupport ? 9.99 : 0);
+  const totalPrice = planPrice + addOnPrice;
   const planLabel = plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : 'Starter';
 
   return (
@@ -37,7 +41,7 @@ export function PaymentScreen({ onBack, onSuccess, loading }: PaymentScreenProps
       footer={
         <View style={styles.footer}>
           <Button
-            label={`Pay $${planPrice.toFixed(2)} with Stripe`}
+            label={`Pay $${totalPrice.toFixed(2)} with Stripe`}
             icon="lock-closed"
             variant="accent"
             loading={loading}
@@ -61,7 +65,7 @@ export function PaymentScreen({ onBack, onSuccess, loading }: PaymentScreenProps
         />
         <View style={styles.total}>
           <Text style={styles.totalKey}>Monthly total</Text>
-          <Text style={styles.totalValue}>${planPrice.toFixed(2)}</Text>
+          <Text style={styles.totalValue}>${totalPrice.toFixed(2)}</Text>
         </View>
       </Container>
 
@@ -69,9 +73,9 @@ export function PaymentScreen({ onBack, onSuccess, loading }: PaymentScreenProps
         <Text style={styles.cardLabel}>Your Investment Plan</Text>
         <SummaryRows
           rows={[
-            ['Basket', b.name],
+            ['Basket', selectedBasket?.name ?? 'No basket selected'],
             ['Monthly amount', fmtUSD(amount ?? 0)],
-            ['Frequency', 'Monthly'],
+            ['Frequency', frequency === 'monthly' ? 'Monthly' : 'Weekly'],
           ]}
         />
       </Container>
