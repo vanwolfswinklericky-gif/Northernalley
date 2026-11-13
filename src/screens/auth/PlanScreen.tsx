@@ -42,9 +42,9 @@ const PLANS: PlanDef[] = [
       { label: 'Active baskets', value: '1', included: true },
       { label: 'DCA frequency', value: 'Monthly', included: true },
       { label: 'Custom basket builder', value: '—', included: false },
-      { label: 'Instant buy', value: 'Add-on $2.99', included: true },
+      { label: 'Instant buy', value: 'Add-on €2.99', included: true },
       { label: 'Portfolio history (all-time)', value: '—', included: false },
-      { label: 'Tax report (CSV)', value: 'Add-on $19.99', included: true },
+      { label: 'Tax report (CSV)', value: 'Add-on €19.99', included: true },
       { label: 'Price alerts', value: '—', included: false },
       { label: 'Support response time', value: '48 hours', included: true },
     ],
@@ -60,7 +60,7 @@ const PLANS: PlanDef[] = [
       { label: 'Active baskets', value: '3', included: true },
       { label: 'DCA frequency', value: 'Weekly', included: true },
       { label: 'Custom basket builder', value: '1 included', included: true },
-      { label: 'Instant buy', value: 'Add-on $2.99', included: true },
+      { label: 'Instant buy', value: 'Add-on €2.99', included: true },
       { label: 'Portfolio history (all-time)', value: 'Yes', included: true },
       { label: 'Tax report (CSV)', value: '1/year', included: true },
       { label: 'Price alerts', value: 'Up to 5 assets', included: true },
@@ -87,7 +87,6 @@ const PLANS: PlanDef[] = [
 ];
 
 export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
-  // 1. Default to 'starter' to match the first card visually
   const [selected, setSelected] = useState<'starter' | 'pro' | 'premium'>('starter');
   const [expanded, setExpanded] = useState<string | null>(null);
   
@@ -100,7 +99,6 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
   const selectedPlanObj = PLANS.find((p) => p.id === selected);
   const basePrice = selectedPlanObj ? selectedPlanObj.price : 0;
   
-  // 2. Safely calculate the add-on price (Ignore weekly DCA if Pro/Premium)
   const isWeeklyDcaIncluded = selected === 'pro' || selected === 'premium';
   
   const addOnPrice = 
@@ -119,7 +117,7 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
       footer={
         <View style={{ paddingBottom: 24, gap: 12 }}>
           <Button
-            label={`Continue — $${totalPrice.toFixed(2)}/mo`}
+            label={`Continue — €${totalPrice.toFixed(2)}/mo`}
             variant="accent"
             onPress={() => onContinue(selected)}
           />
@@ -156,7 +154,7 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
                 </View>
 
                 <View style={styles.priceRow}>
-                  <Text style={styles.price}>${plan.price}</Text>
+                  <Text style={styles.price}>€{plan.price}</Text>
                   <Text style={styles.per}>/month</Text>
                 </View>
 
@@ -169,12 +167,10 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
                   ))}
                 </View>
 
-                {/* 3. INLINE ADD-ONS (Only show inside the currently selected card) */}
                 {isSelected && (
                   <View style={styles.inlineAddOns}>
                     <Text style={styles.inlineAddOnsTitle}>Optional Add-ons</Text>
                     
-                    {/* Extra Basket Addon */}
                     <Pressable 
                       style={[styles.inlineAddOnRow, addOns.extraBasket && styles.inlineAddOnRowActive]} 
                       onPress={() => toggleAddOn('extraBasket')}
@@ -182,13 +178,12 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.addOnText}>Extra Basket</Text>
                       </View>
-                      <Text style={styles.addOnPriceText}>+$4.99</Text>
+                      <Text style={styles.addOnPriceText}>+€4.99</Text>
                       <View style={[styles.plusBtn, addOns.extraBasket && styles.plusBtnActive]}>
                         <Ionicons name={addOns.extraBasket ? "checkmark" : "add"} size={14} color={addOns.extraBasket ? "#fff" : COLORS.accent} />
                       </View>
                     </Pressable>
 
-                    {/* Weekly DCA Addon */}
                     <Pressable 
                       style={[
                         styles.inlineAddOnRow, 
@@ -205,7 +200,7 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
                       </View>
                       {!isWeeklyDcaIncluded ? (
                         <>
-                          <Text style={styles.addOnPriceText}>+$7.99</Text>
+                          <Text style={styles.addOnPriceText}>+€7.99</Text>
                           <View style={[styles.plusBtn, addOns.weeklyDca && styles.plusBtnActive]}>
                             <Ionicons name={addOns.weeklyDca ? "checkmark" : "add"} size={14} color={addOns.weeklyDca ? "#fff" : COLORS.accent} />
                           </View>
@@ -215,7 +210,6 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
                       )}
                     </Pressable>
 
-                    {/* Priority Support Addon */}
                     <Pressable 
                       style={[styles.inlineAddOnRow, addOns.prioritySupport && styles.inlineAddOnRowActive]} 
                       onPress={() => toggleAddOn('prioritySupport')}
@@ -223,7 +217,7 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.addOnText}>Priority Support</Text>
                       </View>
-                      <Text style={styles.addOnPriceText}>+$9.99</Text>
+                      <Text style={styles.addOnPriceText}>+€9.99</Text>
                       <View style={[styles.plusBtn, addOns.prioritySupport && styles.plusBtnActive]}>
                         <Ionicons name={addOns.prioritySupport ? "checkmark" : "add"} size={14} color={addOns.prioritySupport ? "#fff" : COLORS.accent} />
                       </View>
@@ -253,7 +247,7 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
       })}
 
       <Text style={styles.note}>
-        All plans include a free 7-day trial. Cancel anytime from Settings.
+        Your subscription is charged immediately after checkout. Cancel anytime from Settings.
       </Text>
     </Screen>
   );
@@ -325,7 +319,6 @@ const styles = StyleSheet.create({
   detailValueMuted: { color: COLORS.t3, fontWeight: '500' },
   note: { fontSize: 12, color: COLORS.t3, textAlign: 'center', marginTop: SPACING.s3, paddingHorizontal: SPACING.s4, lineHeight: 18 },
 
-  // Inline Add-ons Styles
   inlineAddOns: {
     marginTop: 16,
     paddingTop: 16,

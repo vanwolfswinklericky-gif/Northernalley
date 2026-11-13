@@ -7,6 +7,7 @@ import { getSwapTransaction, resolveToken } from '../_lib/swap.js';
 const USDC_DECIMALS = 1_000_000;
 const MIN_SWAP_USD = 1;
 const MAX_PLANS_PER_RUN = 500;
+const DEPOSIT_FEE_RATE = 0.01; // 1% Fee on every DCA Deposit
 
 function log(level, message, context = {}) {
   const entry = { ts: new Date().toISOString(), level, service: 'dca-cron', message, ...context };
@@ -17,8 +18,7 @@ function log(level, message, context = {}) {
 
 function isDue(plan, lastExecuted) {
   if (!lastExecuted) return true;
-  const daysSince =
-    (Date.now() - new Date(lastExecuted).getTime()) / (1000 * 60 * 60 * 24);
+  const daysSince = (Date.now() - new Date(lastExecuted).getTime()) / (1000 * 60 * 60 * 24);
   switch (plan.frequency) {
     case 'daily': return daysSince >= 1;
     case 'weekly': return daysSince >= 7;
@@ -27,33 +27,8 @@ function isDue(plan, lastExecuted) {
   }
 }
 
-const BASKET_ASSETS = Object.freeze({
-  top20: [
-    { symbol: 'ETH', weight: 0.4 },
-    { symbol: 'USDC', weight: 0.6 },
-  ],
-  btceth: [
-    { symbol: 'ETH', weight: 0.5 },
-    { symbol: 'USDC', weight: 0.5 },
-  ],
-  sol: [{ symbol: 'ETH', weight: 1.0 }],
-  ada: [{ symbol: 'ETH', weight: 1.0 }],
-});
-
-function getBasketAssets(basketId) {
-  const basket = BASKET_ASSETS[basketId];
-  if (!basket) {
-    log('warn', 'Unknown basket Ã¢â‚¬â€ defaulting to USDC', { basketId });
-    return [{ symbol: 'USDC', weight: 1.0 }];
-  }
-  return basket;
-}
-
 async function acquireLock(lockId) {
-  const { rows } = await pool.query(
-    'SELECT pg_try_advisory_lock($1) AS acquired',
-    [lockId]
-  );
+  const { rows } = await pool.query('SELECT pg_try_advisory_lock($1) AS acquired', [lockId]);
   return rows[0]?.acquired === true;
 }
 
@@ -71,17 +46,16 @@ export default async function handler(req, res) {
   }
 
   const executionId = `dca-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
   const locked = await acquireLock(DCA_LOCK_ID);
+  
   if (!locked) {
-    log('warn', 'Skipped Ã¢â‚¬â€ lock held', { executionId });
+    log('warn', 'Skipped - lock held', { executionId });
     return res.status(200).json({ ok: true, skipped: true, reason: 'locked' });
   }
 
   try {
     log('info', 'DCA cron started', { executionId });
 
-    // FIX: Fetch the user's session key (encrypted) alongside the plan
     const { rows: plans } = await pool.query(
       `
       SELECT
@@ -113,10 +87,7 @@ export default async function handler(req, res) {
     try {
       usdc = await resolveToken('USDC');
     } catch (error) {
-      log('error', 'Failed to resolve USDC Ã¢â‚¬â€ aborting', {
-        executionId,
-        error: error.message,
-      });
+      log('error', 'Failed to resolve USDC - aborting', { executionId, error: error.message });
       return res.status(500).json({ ok: false, error: 'Token resolution failed' });
     }
 
@@ -130,7 +101,6 @@ export default async function handler(req, res) {
         continue;
       }
 
-      // FIX: Idempotency check Ã¢â‚¬â€ has this plan already been executed today?
       const { rows: existing } = await pool.query(
         `SELECT id FROM transactions
          WHERE user_id = $1
@@ -140,40 +110,52 @@ export default async function handler(req, res) {
          LIMIT 1`,
         [plan.user_id]
       );
+      
       if (existing.length > 0) {
-        log('info', 'Plan already executed today Ã¢â‚¬â€ skipping', {
-          executionId,
-          userId: plan.user_id,
-        });
         skipped++;
         continue;
       }
 
       try {
-        const basketAssets = getBasketAssets(plan.basket_id);
+        const { rows: basketRows } = await pool.query(
+          `SELECT coins FROM baskets WHERE id = $1`,
+          [plan.basket_id]
+        );
+
+        if (basketRows.length === 0) {
+          log('warn', 'Basket not found - skipping', { executionId, userId: plan.user_id });
+          skipped++;
+          continue;
+        }
+
+        let basketAssets;
+        try {
+          const rawCoins = basketRows[0].coins;
+          basketAssets = typeof rawCoins === 'string' ? JSON.parse(rawCoins) : rawCoins;
+        } catch (e) {
+          skipped++;
+          continue;
+        }
+
+        // --- 1% DEPOSIT FEE CALCULATION ---
+        const grossAmount = Number(plan.amount_usd);
+        const depositFee = grossAmount * DEPOSIT_FEE_RATE;
+        const netAmountToInvest = grossAmount - depositFee;
+
+        if (netAmountToInvest <= 0) {
+          skipped++;
+          continue;
+        }
+
         const swaps = [];
-
         for (const asset of basketAssets) {
-          const usdcAmount = Math.floor(
-            Number(plan.amount_usd) * asset.weight * USDC_DECIMALS
-          );
+          const usdcAmount = Math.floor(netAmountToInvest * asset.weight * USDC_DECIMALS);
 
-          if (usdcAmount < MIN_SWAP_USD * USDC_DECIMALS) {
-            log('info', 'Swap below minimum', {
-              executionId,
-              userId: plan.user_id,
-              symbol: asset.symbol,
-            });
-            continue;
-          }
+          if (usdcAmount < MIN_SWAP_USD * USDC_DECIMALS) continue;
 
           const targetToken = await resolveToken(asset.symbol);
-
           const swapData = await getSwapTransaction(
-            usdc.address,
-            targetToken.address,
-            usdcAmount.toString(),
-            plan.wallet_address
+            usdc.address, targetToken.address, usdcAmount.toString(), plan.wallet_address
           );
 
           swaps.push({
@@ -189,18 +171,10 @@ export default async function handler(req, res) {
           continue;
         }
 
-        // FIX: Pass the user's own session key Ã¢â‚¬â€ not a global one
         const { executed, failed } = await executeSwapBatch(swaps, {
           userId: plan.user_id,
           executionId,
           walletAddress: plan.wallet_address,
-        });
-
-        log('info', 'Swap batch executed', {
-          executionId,
-          userId: plan.user_id,
-          executed: executed.length,
-          failed: failed.length,
         });
 
         const client = await pool.connect();
@@ -212,9 +186,16 @@ export default async function handler(req, res) {
              VALUES ($1, 'dca_buy', $2, $3, $4)`,
             [
               plan.user_id,
-              plan.amount_usd,
+              grossAmount,
               failed.length === 0 ? 'completed' : 'partial',
-              JSON.stringify({ executionId, executed, failed }),
+              JSON.stringify({ 
+                executionId, 
+                grossAmount,
+                depositFee,
+                netAmountInvested: netAmountToInvest,
+                executed, 
+                failed 
+              }),
             ]
           );
 
@@ -224,7 +205,6 @@ export default async function handler(req, res) {
               [plan.dca_plan_id]
             );
           }
-
           await client.query('COMMIT');
         } catch (dbError) {
           await client.query('ROLLBACK');
@@ -234,85 +214,44 @@ export default async function handler(req, res) {
         }
 
         if (plan.push_token && executed.length > 0) {
-          sendPushNotification(plan, executed, failed).catch((pushError) => {
-            log('warn', 'Push notification failed', {
-              executionId,
-              userId: plan.user_id,
-              error: pushError.message,
-            });
+          sendPushNotification(plan, netAmountToInvest, executed, failed).catch((pushError) => {
+            log('warn', 'Push notification failed', { executionId, error: pushError.message });
           });
         }
 
         processed++;
       } catch (planError) {
-        log('error', 'Plan execution failed', {
-          executionId,
-          userId: plan.user_id,
-          dcaPlanId: plan.dca_plan_id,
-          error: planError.message,
-        });
+        log('error', 'Plan execution failed', { executionId, userId: plan.user_id, error: planError.message });
         errors.push({ userId: plan.user_id, error: planError.message });
       }
     }
 
-    log('info', 'DCA cron completed', {
-      executionId,
-      processed,
-      skipped,
-      errors: errors.length,
-    });
-
-    return res.status(200).json({
-      ok: true,
-      executionId,
-      processed,
-      skipped,
-      total: plans.length,
-      errors: errors.length > 0 ? errors : undefined,
-    });
+    return res.status(200).json({ ok: true, executionId, processed, skipped, total: plans.length });
   } catch (error) {
-    log('error', 'DCA cron fatal error', {
-      executionId,
-      error: error.message,
-      stack: error.stack,
-    });
+    log('error', 'DCA cron fatal error', { executionId, error: error.message });
     return res.status(500).json({ ok: false, executionId, error: error.message });
   } finally {
-    await releaseLock(DCA_LOCK_ID).catch((releaseError) => {
-      log('error', 'Failed to release lock', {
-        executionId,
-        error: releaseError.message,
-      });
-    });
+    await releaseLock(DCA_LOCK_ID).catch((e) => log('error', 'Lock release failed', { error: e.message }));
   }
 }
 
-async function sendPushNotification(plan, executed = [], failed = []) {
+async function sendPushNotification(plan, netAmount, executed = [], failed = []) {
   const succeeded = executed.length;
   const total = succeeded + failed.length;
 
-  let body;
-  if (failed.length === 0) {
-    body = `Your $${Number(plan.amount_usd).toFixed(2)} investment was successful.`;
-  } else if (succeeded === 0) {
-    body = `Your $${Number(plan.amount_usd).toFixed(2)} investment failed. We'll retry shortly.`;
-  } else {
-    body = `${succeeded} of ${total} swaps completed for your $${Number(plan.amount_usd).toFixed(2)} investment.`;
-  }
+  let body = failed.length === 0 
+    ? `Your €${netAmount.toFixed(2)} ETF investment was successful.`
+    : `Investment partially failed. €${netAmount.toFixed(2)} processed.`;
 
-  const response = await fetch('https://exp.host/--/api/v2/push/send', {
+  await fetch('https://exp.host/--/api/v2/push/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
       to: plan.push_token,
       sound: 'default',
-      title: 'DCA Executed',
+      title: 'ETF Investment Executed',
       body,
       data: { screen: 'activity' },
     }),
   });
-
-  if (!response.ok) {
-    throw new Error(`Push API returned ${response.status}`);
-  }
 }

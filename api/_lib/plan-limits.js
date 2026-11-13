@@ -6,17 +6,24 @@ export const PLAN_LIMITS = {
   premium: { prebuilt: Infinity, custom: Infinity, total: Infinity },
 };
 
-export function canAddBasket(plan, currentCount, basketType) {
+export function canAddBasket(plan, currentCount, basketType, addOns = {}) {
   const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.starter;
 
-  if (currentCount >= limits.total) {
+  // Check if the user purchased the Extra Basket add-on
+  const hasExtraBasket = addOns?.extraBasket === true;
+  
+  // Calculate effective limits
+  const effectiveTotal = limits.total + (hasExtraBasket ? 1 : 0);
+  const effectiveCustom = limits.custom + (hasExtraBasket ? 1 : 0);
+
+  if (currentCount >= effectiveTotal) {
     return {
       allowed: false,
-      reason: `Your ${plan} plan allows ${limits.total} basket${limits.total === 1 ? '' : 's'}. Upgrade to add more.`,
+      reason: `Your ${plan} plan allows ${effectiveTotal} basket${effectiveTotal === 1 ? '' : 's'}. Upgrade to add more.`,
     };
   }
 
-  if (basketType === 'custom' && limits.custom === 0) {
+  if (basketType === 'custom' && effectiveCustom === 0) {
     return {
       allowed: false,
       reason: `Custom baskets are not available on the ${plan} plan. Upgrade to Pro or Premium.`,

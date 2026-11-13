@@ -1,7 +1,7 @@
 // src/store/planStore.ts
 
-import { create } from 'zustand';
 import type { Basket } from '@/types/basket';
+import { create } from 'zustand';
 
 export type SubscriptionPlan = 'starter' | 'pro' | 'premium';
 
@@ -26,7 +26,7 @@ interface PlanState {
   frequency: 'monthly' | 'weekly';
   email: string | null;
   plan: SubscriptionPlan | null;
-  currency: string; // Supports all ISO 4217 currency codes
+  currency: string; 
   addOns: AddOns;
 
   setBasket: (basket: Basket) => void;
@@ -46,7 +46,7 @@ const initialState = {
   frequency: 'monthly' as const,
   email: null,
   plan: null,
-  currency: 'USD', // Default currency
+  currency: 'EUR', // Changed from USD to EUR
   addOns: initialAddOns,
 };
 

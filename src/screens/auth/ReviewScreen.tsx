@@ -5,11 +5,16 @@ import { CoinBadge } from '@/components/ui/CoinBadge';
 import { Container } from '@/components/ui/Container';
 import { Screen } from '@/components/ui/Screen';
 import { SummaryRows } from '@/components/ui/SummaryRows';
-import { FEE_RATE, fmtUSD } from '@/constants/baskets';
 import { COLORS } from '@/constants/theme';
 import { usePlanStore } from '@/store/planStore';
 import { Ionicons } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+
+const DEPOSIT_FEE_RATE = 0.01; // 1% Deposit Fee
+
+// Format as Euros to match Stripe checkout
+const fmtEUR = (n: number) => `€${n.toFixed(2)}`;
 
 interface ReviewScreenProps {
   onBack: () => void;
@@ -17,24 +22,52 @@ interface ReviewScreenProps {
 }
 
 export function ReviewScreen({ onBack, onContinue }: ReviewScreenProps) {
-  const { selectedBasket, amount, frequency } = usePlanStore();
-  const fee = (amount ?? 0) * FEE_RATE;
-  const coinSummary = selectedBasket?.coins
-    .map(({ symbol, weight }) => (weight > 0 ? `${symbol} ${Math.round(weight * 100)}%` : symbol))
+  const { selectedBasket, amount, frequency, plan } = usePlanStore();
+  
+  const grossAmount = amount ?? 0;
+  
+  // 1% deposit fee calculation
+  const depositFee = grossAmount * DEPOSIT_FEE_RATE;
+  const netInvestment = grossAmount - depositFee;
+
+  const parsedCoins = useMemo(() => {
+    if (!selectedBasket?.coins) return [];
+    if (Array.isArray(selectedBasket.coins)) return selectedBasket.coins;
+    try {
+      return JSON.parse(selectedBasket.coins);
+    } catch {
+      return [];
+    }
+  }, [selectedBasket]);
+
+  const coinSummary = parsedCoins
+    .map(({ symbol, weight }: { symbol: string; weight: number }) => 
+      (weight > 0 ? `${symbol} ${Math.round(weight * 100)}%` : symbol)
+    )
     .join(' · ');
+
+  const nextBuyDate = useMemo(() => {
+    const today = new Date();
+    if (frequency === 'monthly') {
+      today.setMonth(today.getMonth() + 1); 
+    } else {
+      today.setDate(today.getDate() + 7);
+    }
+    return today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }, [frequency]);
 
   return (
     <Screen
       onBack={onBack}
       progress={5 / 7}
       title="Review your plan"
-      subtitle="Here's what will happen each month."
+      subtitle="Here's exactly how your money will be invested."
       footer={<Button label="Continue" onPress={onContinue} />}
     >
       <Container>
         <View style={styles.head}>
           <View style={styles.stack}>
-            {(selectedBasket?.coins ?? []).slice(0, 3).map(({ symbol }, i) => (
+            {parsedCoins.slice(0, 3).map(({ symbol }: { symbol: string }, i: number) => (
               <CoinBadge
                 key={`${symbol}-${i}`}
                 symbol={symbol}
@@ -51,11 +84,14 @@ export function ReviewScreen({ onBack, onContinue }: ReviewScreenProps) {
 
         <SummaryRows
           rows={[
+            ['App Plan', plan?.toUpperCase() ?? 'STARTER'], 
             ['Basket', selectedBasket?.name ?? 'No basket selected'],
-            ['Amount', fmtUSD(amount ?? 0)],
+            ['Total Deposit', fmtEUR(grossAmount)],
+            ['Deposit Fee (1%)', `-${fmtEUR(depositFee)}`],
+            ['Amount Invested', fmtEUR(netInvestment)],
             ['Frequency', frequency === 'monthly' ? 'Monthly' : 'Weekly'],
             ['First buy', 'Today'],
-            ['Next buy', 'Nov 7, 2026'],
+            ['Next buy', nextBuyDate], 
           ]}
         />
       </Container>
@@ -63,8 +99,8 @@ export function ReviewScreen({ onBack, onContinue }: ReviewScreenProps) {
       <View style={styles.note}>
         <Ionicons name="information-circle-outline" size={18} color={COLORS.t3} />
         <Text style={styles.noteText}>
-          A {(FEE_RATE * 100).toFixed(1)}% fee ({fmtUSD(fee)}) is included in each purchase.
-          Crypto prices are volatile and you may lose money.
+          A 1% deposit fee ({fmtEUR(depositFee)}) is applied to each deposit. 
+          Your monthly app subscription is billed separately.
         </Text>
       </View>
     </Screen>
