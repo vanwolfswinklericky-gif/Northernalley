@@ -40,11 +40,23 @@ export function ReviewScreen({ onBack, onContinue }: ReviewScreenProps) {
     }
   }, [selectedBasket]);
 
-  const coinSummary = parsedCoins
+  const displayCoins = useMemo(() => {
+    const symbols = parsedCoins.map(({ symbol }: { symbol: string }) => symbol);
+    if (parsedCoins.length !== 2 || !symbols.includes('ETH') || !symbols.includes('USDC')) {
+      return parsedCoins;
+    }
+
+    return parsedCoins.map((coin: { symbol: string; weight: number }) => ({
+      ...coin,
+      weight: 0.5,
+    }));
+  }, [parsedCoins]);
+
+  const coinSummary = displayCoins
     .map(({ symbol, weight }: { symbol: string; weight: number }) => 
       (weight > 0 ? `${symbol} ${Math.round(weight * 100)}%` : symbol)
     )
-    .join(' · ');
+    .join(' ');
 
   const nextBuyDate = useMemo(() => {
     const today = new Date();
@@ -67,7 +79,7 @@ export function ReviewScreen({ onBack, onContinue }: ReviewScreenProps) {
       <Container>
         <View style={styles.head}>
           <View style={styles.stack}>
-            {parsedCoins.slice(0, 3).map(({ symbol }: { symbol: string }, i: number) => (
+            {displayCoins.slice(0, 3).map(({ symbol }: { symbol: string }, i: number) => (
               <CoinBadge
                 key={`${symbol}-${i}`}
                 symbol={symbol}

@@ -18,11 +18,9 @@ interface BasketsScreenProps {
 }
 
 export function BasketsScreen({ onBack, onContinue, onCreateCustom }: BasketsScreenProps) {
-  // FIX: Added 'error' to the destructuring
   const { data, isLoading, isError, error, refetch } = useBaskets();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   
-  // ADD-ON LOGIC: Check if they bought the extra basket add-on
   const { addOns } = usePlanStore();
 
   // --- Loading State ---
@@ -61,17 +59,23 @@ export function BasketsScreen({ onBack, onContinue, onCreateCustom }: BasketsScr
   const limits = data.limits ?? { total: 1, custom: 0 };
   const usage = data.usage ?? { total: 0 };
   
-  // ADD-ON LOGIC: Unlock custom baskets if they are Pro/Premium OR bought the add-on
-  const canCreateCustom = plan === 'pro' || plan === 'premium' || addOns.extraBasket;
-  const atLimit = usage.total >= limits.total;
-  const limitText = limits.total === Infinity ? 'unlimited' : limits.total;
+  // ADD-ON LOGIC: If they bought the extra basket add-on, increase their limit by 1
+  const hasExtraBasketAddon = addOns.extraBasket;
+  const effectiveTotalLimit = limits.total + (hasExtraBasketAddon ? 1 : 0);
+  const effectiveCustomLimit = limits.custom + (hasExtraBasketAddon ? 1 : 0);
+  
+  const canCreateCustom = (plan === 'pro' || plan === 'premium' || hasExtraBasketAddon) 
+    && usage.total < effectiveTotalLimit;
+    
+  const atLimit = usage.total >= effectiveTotalLimit;
+  const limitText = effectiveTotalLimit === Infinity ? 'unlimited' : effectiveTotalLimit;
 
   return (
     <Screen
       onBack={onBack}
       progress={5 / 10}
       title="Choose your basket"
-      subtitle={`Your ${plan} plan includes ${limitText} basket${limits.total === 1 ? '' : 's'}.`}
+      subtitle={`Your ${plan} plan includes ${limitText} basket${effectiveTotalLimit === 1 ? '' : 's'}.`}
       footer={
         <Button
           label="Continue"

@@ -1,6 +1,7 @@
 // api/baskets.js
 import { pool } from './_lib/db.js';
 import { canAddBasket, PLAN_LIMITS } from './_lib/plan-limits.js';
+import { normalizeEthUsdcWeights } from './_lib/basket-weights.js';
 
 const WITHDRAWAL_FEE_RATE = 0.02; // 2% Fee on Withdrawals
 
@@ -55,7 +56,10 @@ export default async function handler(req, res) {
       const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.starter;
 
       return res.status(200).json({
-        baskets: allBaskets.rows,
+        baskets: allBaskets.rows.map((basket) => ({
+          ...basket,
+          coins: normalizeEthUsdcWeights(basket.coins),
+        })),
         plan,
         limits,
         usage: {

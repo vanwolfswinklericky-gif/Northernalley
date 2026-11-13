@@ -1,6 +1,7 @@
 // api/cron/dca.js
 
 import pool from '../_lib/db.js';
+import { normalizeEthUsdcWeights } from '../_lib/basket-weights.js';
 import { executeSwapBatch } from '../_lib/execute-swap.js';
 import { getSwapTransaction, resolveToken } from '../_lib/swap.js';
 
@@ -132,6 +133,7 @@ export default async function handler(req, res) {
         try {
           const rawCoins = basketRows[0].coins;
           basketAssets = typeof rawCoins === 'string' ? JSON.parse(rawCoins) : rawCoins;
+          basketAssets = normalizeEthUsdcWeights(basketAssets);
         } catch (e) {
           skipped++;
           continue;
