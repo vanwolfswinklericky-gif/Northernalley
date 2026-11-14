@@ -3,6 +3,7 @@
 import { normalizeEthUsdcWeights } from '../_lib/basket-weights.js';
 import pool from '../_lib/db.js';
 import { executeSwapBatch } from '../_lib/execute-swap.js';
+import { calculateRebalanceSwaps } from '../_lib/rebalance.js';
 import { getSwapTransaction, resolveToken } from '../_lib/swap.js';
 
 const USDC_DECIMALS = 1_000_000;
@@ -48,7 +49,7 @@ export default async function handler(req, res) {
 
   const executionId = `dca-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const locked = await acquireLock(DCA_LOCK_ID);
-  
+
   if (!locked) {
     log('warn', 'Skipped - lock held', { executionId });
     return res.status(200).json({ ok: true, skipped: true, reason: 'locked' });
@@ -94,6 +95,7 @@ export default async function handler(req, res) {
 
     let processed = 0;
     let skipped = 0;
+    let rebalanced = 0;
     const errors = [];
 
     for (const plan of plans) {
@@ -102,6 +104,7 @@ export default async function handler(req, res) {
         continue;
       }
 
+      // Idempotency: skip if already executed today
       const { rows: existing } = await pool.query(
         `SELECT id FROM transactions
          WHERE user_id = $1
@@ -111,7 +114,7 @@ export default async function handler(req, res) {
          LIMIT 1`,
         [plan.user_id]
       );
-      
+
       if (existing.length > 0) {
         skipped++;
         continue;
@@ -149,15 +152,18 @@ export default async function handler(req, res) {
           continue;
         }
 
+        // --- BUILD DCA SWAPS ---
         const swaps = [];
         for (const asset of basketAssets) {
           const usdcAmount = Math.floor(netAmountToInvest * asset.weight * USDC_DECIMALS);
-
           if (usdcAmount < MIN_SWAP_USD * USDC_DECIMALS) continue;
 
           const targetToken = await resolveToken(asset.symbol);
           const swapData = await getSwapTransaction(
-            usdc.address, targetToken.address, usdcAmount.toString(), plan.wallet_address
+            usdc.address,
+            targetToken.address,
+            usdcAmount.toString(),
+            plan.wallet_address
           );
 
           swaps.push({
@@ -173,12 +179,66 @@ export default async function handler(req, res) {
           continue;
         }
 
+        // --- EXECUTE DCA ---
         const { executed, failed } = await executeSwapBatch(swaps, {
           userId: plan.user_id,
           executionId,
           walletAddress: plan.wallet_address,
         });
 
+        // --- AUTO-REBALANCING (Pro / Premium only) ---
+        let rebalanceResult = null;
+        if (plan.subscription_plan === 'pro' || plan.subscription_plan === 'premium') {
+          try {
+            const rebalanceSwaps = await calculateRebalanceSwaps(
+              plan.wallet_address,
+              basketAssets
+            );
+
+            if (rebalanceSwaps.length > 0) {
+              const rebalanceTxData = [];
+              for (const swap of rebalanceSwaps) {
+                const fromToken = await resolveToken(swap.fromSymbol);
+                const toToken = await resolveToken(swap.toSymbol);
+
+                const swapData = await getSwapTransaction(
+                  fromToken.address,
+                  toToken.address,
+                  Math.floor(swap.amountUsd * USDC_DECIMALS).toString(),
+                  plan.wallet_address
+                );
+
+                rebalanceTxData.push({
+                  symbol: swap.toSymbol,
+                  toToken: toToken.address,
+                  usdcAmount: Math.floor(swap.amountUsd * USDC_DECIMALS),
+                  transaction: swapData,
+                });
+              }
+
+              const rebalanceExec = await executeSwapBatch(rebalanceTxData, {
+                userId: plan.user_id,
+                executionId: `${executionId}-rebalance`,
+                walletAddress: plan.wallet_address,
+              });
+
+              rebalanceResult = {
+                executed: rebalanceExec.executed.length,
+                failed: rebalanceExec.failed.length,
+                swaps: rebalanceSwaps,
+              };
+              rebalanced++;
+            }
+          } catch (rebalanceError) {
+            log('warn', 'Rebalance failed (non-fatal)', {
+              executionId,
+              userId: plan.user_id,
+              error: rebalanceError.message,
+            });
+          }
+        }
+
+        // --- RECORD TRANSACTION ---
         const client = await pool.connect();
         try {
           await client.query('BEGIN');
@@ -190,13 +250,14 @@ export default async function handler(req, res) {
               plan.user_id,
               grossAmount,
               failed.length === 0 ? 'completed' : 'partial',
-              JSON.stringify({ 
-                executionId, 
+              JSON.stringify({
+                executionId,
                 grossAmount,
                 depositFee,
                 netAmountInvested: netAmountToInvest,
-                executed, 
-                failed 
+                executed,
+                failed,
+                rebalance: rebalanceResult,
               }),
             ]
           );
@@ -215,35 +276,67 @@ export default async function handler(req, res) {
           client.release();
         }
 
+        // --- PUSH NOTIFICATION ---
         if (plan.push_token && executed.length > 0) {
-          sendPushNotification(plan, netAmountToInvest, executed, failed).catch((pushError) => {
-            log('warn', 'Push notification failed', { executionId, error: pushError.message });
-          });
+          sendPushNotification(plan, netAmountToInvest, executed, failed, rebalanceResult).catch(
+            (pushError) => {
+              log('warn', 'Push notification failed', {
+                executionId,
+                error: pushError.message,
+              });
+            }
+          );
         }
 
         processed++;
       } catch (planError) {
-        log('error', 'Plan execution failed', { executionId, userId: plan.user_id, error: planError.message });
+        log('error', 'Plan execution failed', {
+          executionId,
+          userId: plan.user_id,
+          error: planError.message,
+        });
         errors.push({ userId: plan.user_id, error: planError.message });
       }
     }
 
-    return res.status(200).json({ ok: true, executionId, processed, skipped, total: plans.length });
+    log('info', 'DCA cron completed', {
+      executionId,
+      processed,
+      skipped,
+      rebalanced,
+      errors: errors.length,
+    });
+
+    return res.status(200).json({
+      ok: true,
+      executionId,
+      processed,
+      skipped,
+      rebalanced,
+      total: plans.length,
+      errors: errors.length > 0 ? errors : undefined,
+    });
   } catch (error) {
     log('error', 'DCA cron fatal error', { executionId, error: error.message });
     return res.status(500).json({ ok: false, executionId, error: error.message });
   } finally {
-    await releaseLock(DCA_LOCK_ID).catch((e) => log('error', 'Lock release failed', { error: e.message }));
+    await releaseLock(DCA_LOCK_ID).catch((e) =>
+      log('error', 'Lock release failed', { error: e.message })
+    );
   }
 }
 
-async function sendPushNotification(plan, netAmount, executed = [], failed = []) {
+async function sendPushNotification(plan, netAmount, executed = [], failed = [], rebalance = null) {
   const succeeded = executed.length;
   const total = succeeded + failed.length;
 
-  let body = failed.length === 0 
+  let body = failed.length === 0
     ? `Your €${netAmount.toFixed(2)} ETF investment was successful.`
     : `Investment partially failed. €${netAmount.toFixed(2)} processed.`;
+
+  if (rebalance && rebalance.executed > 0) {
+    body += ` Portfolio automatically rebalanced.`;
+  }
 
   await fetch('https://exp.host/--/api/v2/push/send', {
     method: 'POST',

@@ -1,10 +1,10 @@
 // api/_lib/plan-limits.js
 
 export const PLAN_LIMITS = {
-  free:    { prebuilt: 1, custom: 0, total: 1 },
-  starter: { prebuilt: 2, custom: 0, total: 2 },
-  pro:     { prebuilt: 3, custom: 1, total: 3 },
-  premium: { prebuilt: Infinity, custom: Infinity, total: Infinity },
+  free:    { total: 1,        custom: 0,        dailyDca: false, rebalance: false, instantBuy: false },
+  starter: { total: 2,        custom: 0,        dailyDca: false, rebalance: false, instantBuy: false },
+  pro:     { total: 3,        custom: 1,        dailyDca: false, rebalance: true,  instantBuy: false },
+  premium: { total: Infinity, custom: Infinity, dailyDca: true,  rebalance: true,  instantBuy: true  },
 };
 
 export function canAddBasket(plan, currentCount, basketType, addOns = {}) {

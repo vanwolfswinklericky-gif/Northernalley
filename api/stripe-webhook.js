@@ -116,6 +116,16 @@ async function handleCheckoutComplete(session) {
     dcaAmount = FREE_PLAN_MAX_DEPOSIT;
   }
 
+  // Enforce Daily DCA (Premium only)
+  let effectiveFrequency = frequency;
+  if (frequency === 'daily' && plan !== 'premium') {
+    log('warn', 'Daily DCA only allowed on Premium — downgrading to monthly', {
+      userId,
+      plan,
+    });
+    effectiveFrequency = 'monthly';
+  }
+
   if (plan === 'free') {
     const lifetimeEnd = new Date();
     lifetimeEnd.setFullYear(lifetimeEnd.getFullYear() + 100);
@@ -151,14 +161,21 @@ async function handleCheckoutComplete(session) {
     log('info', 'Paid subscription activated', { userId, plan, addOns: addOnsString });
   }
 
+  // Create the DCA plan using the validated frequency
   await pool.query(
     `INSERT INTO dca_plans (user_id, basket_id, amount_usd, frequency, status, next_execution_date)
      VALUES ($1, $2, $3, $4, 'active', NOW())
      ON CONFLICT DO NOTHING`,
-    [userId, basketId, dcaAmount, frequency]
+    [userId, basketId, dcaAmount, effectiveFrequency]
   );
 
-  log('info', 'DCA plan created', { userId, basketId, dcaAmount, frequency });
+  log('info', 'DCA plan created', {
+    userId,
+    basketId,
+    dcaAmount,
+    frequency: effectiveFrequency,
+    originalFrequency: frequency,
+  });
 }
 
 async function handleSubscriptionUpdated(subscription) {

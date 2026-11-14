@@ -35,6 +35,7 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
   const plan = usePlanStore((s) => s.plan);
 
   const isFree = plan === 'free';
+  const isPremium = plan === 'premium';
   const effectiveMax = isFree ? FREE_PLAN_MAX_AMOUNT : PAID_PLAN_MAX_AMOUNT;
 
   const [isCustom, setIsCustom] = useState(false);
@@ -60,11 +61,15 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
 
   const yearly = (amount ?? 0) * 12;
 
+  // Helper to format the note for the current frequency
+  const frequencyLabel = frequency === 'monthly' ? 'month' : frequency === 'weekly' ? 'week' : 'day';
+  const yearlyMultiplier = frequency === 'monthly' ? 12 : frequency === 'weekly' ? 52 : 365;
+
   return (
     <Screen
       onBack={onBack}
       progress={6 / 10}
-      title="How much each month?"
+      title={frequency === 'daily' ? 'How much each day?' : frequency === 'weekly' ? 'How much each week?' : 'How much each month?'}
       subtitle={
         isFree
           ? `Free plan is limited to €${FREE_PLAN_MAX_AMOUNT}/mo. Upgrade to invest more.`
@@ -110,7 +115,30 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
                     : styles.freqText
                 }
               >
-                Weekly {!addOns.weeklyDca && '(Add-on required)'}
+                Weekly {!addOns.weeklyDca && '(Add-on)'}
+              </Text>
+            </Pressable>
+
+            {/* Daily DCA — Premium only */}
+            <Pressable
+              style={[
+                styles.freqBtn,
+                frequency === 'daily' && styles.freqBtnActive,
+                !isPremium && styles.freqBtnDisabled,
+              ]}
+              onPress={() => isPremium && setFrequency('daily')}
+              disabled={!isPremium}
+            >
+              <Text
+                style={
+                  !isPremium
+                    ? styles.freqTextDisabled
+                    : frequency === 'daily'
+                    ? styles.freqTextActive
+                    : styles.freqText
+                }
+              >
+                Daily {!isPremium && '(Premium)'}
               </Text>
             </Pressable>
           </View>
@@ -123,7 +151,15 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
                 amount={a}
                 selected={!isCustom && amount === a}
                 onPress={() => selectPreset(a)}
-                tag={a === 100 ? 'Most popular' : frequency === 'weekly' ? 'per week' : 'per month'}
+                tag={
+                  a === 100
+                    ? 'Most popular'
+                    : frequency === 'weekly'
+                    ? 'per week'
+                    : frequency === 'daily'
+                    ? 'per day'
+                    : 'per month'
+                }
               />
             ))}
 
@@ -170,7 +206,11 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
                 <>
                   That's{' '}
                   <Text style={styles.noteStrong}>
-                    {fmtUSD(frequency === 'monthly' ? yearly : yearly * 4)}
+                    {fmtUSD(frequency === 'monthly'
+                      ? yearly
+                      : frequency === 'weekly'
+                      ? yearly * 4
+                      : yearly * 30)}
                   </Text>{' '}
                   invested over the next 12 months.
                 </>

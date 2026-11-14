@@ -1,9 +1,15 @@
 // api/baskets.js
+
 import { normalizeEthUsdcWeights } from './_lib/basket-weights.js';
 import { pool } from './_lib/db.js';
+import { executeSwapBatch } from './_lib/execute-swap.js';
 import { canAddBasket, PLAN_LIMITS } from './_lib/plan-limits.js';
+import { getSwapTransaction, resolveToken } from './_lib/swap.js';
 
 const WITHDRAWAL_FEE_RATE = 0.02;
+const DEPOSIT_FEE_RATE = 0.01;
+const USDC_DECIMALS = 1_000_000;
+const MIN_SWAP_USD = 1;
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -16,7 +22,7 @@ export default async function handler(req, res) {
 
   try {
     const userResult = await pool.query(
-      `SELECT u.id, s.plan, s.add_ons
+      `SELECT u.id, u.wallet_address, s.plan, s.add_ons
        FROM users u
        LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active'
        WHERE u.privy_user_id = $1
@@ -29,7 +35,9 @@ export default async function handler(req, res) {
     }
 
     const userId = userResult.rows[0].id;
+    const walletAddress = userResult.rows[0].wallet_address;
     const plan = userResult.rows[0].plan || 'free';
+    const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
 
     const rawAddOns = userResult.rows[0].add_ons || '';
     const userAddOns = {
@@ -46,8 +54,6 @@ export default async function handler(req, res) {
          ORDER BY type DESC, created_at ASC`,
         [userId]
       );
-
-      const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
 
       return res.status(200).json({
         baskets: allBaskets.rows.map((basket) => ({
@@ -98,6 +104,133 @@ export default async function handler(req, res) {
           grossAmount,
           feeDeducted: withdrawalFee,
           netAmountSent: netAmountToSend,
+        });
+      }
+
+      // --- INSTANT BUY (PREMIUM ONLY) ---
+      if (body.action === 'instant_buy') {
+        if (!limits.instantBuy) {
+          return res.status(403).json({
+            error: 'Instant buy is a Premium feature.',
+            code: 'PLAN_LIMIT',
+          });
+        }
+
+        if (!walletAddress) {
+          return res.status(400).json({ error: 'Wallet not set up' });
+        }
+
+        const { basketId, amount } = body;
+        const grossAmount = Number(amount);
+
+        if (!basketId || grossAmount <= 0) {
+          return res.status(400).json({ error: 'basketId and amount are required' });
+        }
+
+        // 1. Fetch basket from DB
+        const { rows: basketRows } = await pool.query(
+          `SELECT coins FROM baskets WHERE id = $1`,
+          [basketId]
+        );
+
+        if (basketRows.length === 0) {
+          return res.status(404).json({ error: 'Basket not found' });
+        }
+
+        let basketAssets;
+        try {
+          const rawCoins = basketRows[0].coins;
+          basketAssets = typeof rawCoins === 'string' ? JSON.parse(rawCoins) : rawCoins;
+          basketAssets = normalizeEthUsdcWeights(basketAssets);
+        } catch {
+          return res.status(400).json({ error: 'Invalid basket data' });
+        }
+
+        // 2. Calculate fee and allocate
+        const depositFee = grossAmount * DEPOSIT_FEE_RATE;
+        const netAmount = grossAmount - depositFee;
+
+        if (netAmount <= 0) {
+          return res.status(400).json({ error: 'Amount too small after fees' });
+        }
+
+        // 3. Resolve USDC token
+        let usdc;
+        try {
+          usdc = await resolveToken('USDC');
+        } catch {
+          return res.status(500).json({ error: 'Token resolution failed' });
+        }
+
+        // 4. Build swaps
+        const swaps = [];
+        for (const asset of basketAssets) {
+          const usdcAmount = Math.floor(netAmount * asset.weight * USDC_DECIMALS);
+          if (usdcAmount < MIN_SWAP_USD * USDC_DECIMALS) continue;
+
+          const targetToken = await resolveToken(asset.symbol);
+          const swapData = await getSwapTransaction(
+            usdc.address,
+            targetToken.address,
+            usdcAmount.toString(),
+            walletAddress
+          );
+
+          swaps.push({
+            symbol: asset.symbol,
+            toToken: targetToken.address,
+            usdcAmount,
+            transaction: swapData,
+          });
+        }
+
+        if (swaps.length === 0) {
+          return res.status(400).json({ error: 'Amount too small to execute any swaps' });
+        }
+
+        // 5. Execute swaps
+        const executionId = `instant-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const { executed, failed } = await executeSwapBatch(swaps, {
+          userId,
+          executionId,
+          walletAddress,
+        });
+
+        // 6. Record transaction
+        const { rows } = await pool.query(
+          `INSERT INTO transactions (user_id, type, amount_usd, status, metadata)
+           VALUES ($1, 'instant_buy', $2, $3, $4)
+           RETURNING id`,
+          [
+            userId,
+            grossAmount,
+            failed.length === 0 ? 'completed' : executed.length === 0 ? 'failed' : 'partial',
+            JSON.stringify({
+              executionId,
+              basketId,
+              depositFee,
+              netAmountInvested: netAmount,
+              executed,
+              failed,
+            }),
+          ]
+        );
+
+        return res.status(200).json({
+          success: executed.length > 0,
+          transactionId: rows[0].id,
+          executionId,
+          grossAmount,
+          feeDeducted: depositFee,
+          netAmountInvested: netAmount,
+          executed: executed.length,
+          failed: failed.length,
+          message:
+            failed.length === 0
+              ? 'Instant buy completed.'
+              : executed.length > 0
+              ? 'Partial execution. Some swaps failed.'
+              : 'Instant buy failed. Please try again.',
         });
       }
 
@@ -152,7 +285,7 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
-    console.error('Baskets/Withdrawal error:', err);
+    console.error('Baskets/Withdrawal/InstantBuy error:', err);
     return res.status(500).json({ error: err.message });
   }
 }

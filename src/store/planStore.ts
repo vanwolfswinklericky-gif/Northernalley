@@ -4,6 +4,7 @@ import type { Basket } from '@/types/basket';
 import { create } from 'zustand';
 
 export type SubscriptionPlan = 'free' | 'starter' | 'pro' | 'premium';
+export type Frequency = 'monthly' | 'weekly' | 'daily'; // <-- Added 'daily'
 
 export interface AddOns {
   extraBasket: boolean;
@@ -23,15 +24,15 @@ interface PlanState {
   basketId: string | null;
   selectedBasket: Basket | null;
   amount: number | null;
-  frequency: 'monthly' | 'weekly';
+  frequency: Frequency; // <-- Updated type
   email: string | null;
   plan: SubscriptionPlan | null;
-  currency: string; 
+  currency: string;
   addOns: AddOns;
 
   setBasket: (basket: Basket) => void;
   setAmount: (amount: number) => void;
-  setFrequency: (frequency: 'monthly' | 'weekly') => void;
+  setFrequency: (frequency: Frequency) => void; // <-- Updated type
   setEmail: (email: string) => void;
   setPlan: (plan: SubscriptionPlan) => void;
   setCurrency: (currency: string) => void;
@@ -43,7 +44,7 @@ const initialState = {
   basketId: null,
   selectedBasket: null,
   amount: null,
-  frequency: 'monthly' as const,
+  frequency: 'monthly' as Frequency,
   email: null,
   plan: null,
   currency: 'EUR',
