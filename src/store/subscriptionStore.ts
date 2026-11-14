@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 
-export type Plan = 'starter' | 'pro' | 'premium';
+export type Plan = 'free' | 'starter' | 'pro' | 'premium';
 
 interface SubscriptionState {
   plan: Plan | null;

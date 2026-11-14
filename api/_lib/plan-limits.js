@@ -1,13 +1,14 @@
 // api/_lib/plan-limits.js
 
 export const PLAN_LIMITS = {
-  starter: { prebuilt: 1, custom: 0, total: 1 },
+  free:    { prebuilt: 1, custom: 0, total: 1 },
+  starter: { prebuilt: 2, custom: 0, total: 2 },
   pro:     { prebuilt: 3, custom: 1, total: 3 },
   premium: { prebuilt: Infinity, custom: Infinity, total: Infinity },
 };
 
 export function canAddBasket(plan, currentCount, basketType, addOns = {}) {
-  const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.starter;
+  const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
 
   // Check if the user purchased the Extra Basket add-on
   const hasExtraBasket = addOns?.extraBasket === true;

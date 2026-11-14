@@ -15,7 +15,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
 } from 'react-native';
 
 interface AmountScreenProps {
@@ -23,12 +23,19 @@ interface AmountScreenProps {
   onContinue: () => void;
 }
 
+const FREE_PLAN_MAX_AMOUNT = 1000;
+const PAID_PLAN_MAX_AMOUNT = 100000;
+
 export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
   const amount = usePlanStore((s) => s.amount);
   const setAmount = usePlanStore((s) => s.setAmount);
   const frequency = usePlanStore((s) => s.frequency);
   const setFrequency = usePlanStore((s) => s.setFrequency);
   const addOns = usePlanStore((s) => s.addOns);
+  const plan = usePlanStore((s) => s.plan);
+
+  const isFree = plan === 'free';
+  const effectiveMax = isFree ? FREE_PLAN_MAX_AMOUNT : PAID_PLAN_MAX_AMOUNT;
 
   const [isCustom, setIsCustom] = useState(false);
   const [customValue, setCustomValue] = useState('');
@@ -36,10 +43,10 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
   const handleCustomChange = (text: string) => {
     const numericText = text.replace(/[^0-9]/g, '');
     setCustomValue(numericText);
-    
+
     const num = parseInt(numericText, 10);
     if (!isNaN(num) && num > 0) {
-      setAmount(num);
+      setAmount(Math.min(num, effectiveMax));
     } else {
       setAmount(0);
     }
@@ -48,7 +55,7 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
   const selectPreset = (presetAmount: number) => {
     setIsCustom(false);
     setCustomValue('');
-    setAmount(presetAmount);
+    setAmount(Math.min(presetAmount, effectiveMax));
   };
 
   const yearly = (amount ?? 0) * 12;
@@ -58,14 +65,18 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
       onBack={onBack}
       progress={6 / 10}
       title="How much each month?"
-      subtitle="You can change or pause this any time."
+      subtitle={
+        isFree
+          ? `Free plan is limited to €${FREE_PLAN_MAX_AMOUNT}/mo. Upgrade to invest more.`
+          : 'You can change or pause this any time.'
+      }
     >
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <ScrollView 
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }} 
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
@@ -76,23 +87,29 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
               style={[styles.freqBtn, frequency === 'monthly' && styles.freqBtnActive]}
               onPress={() => setFrequency('monthly')}
             >
-              <Text style={frequency === 'monthly' ? styles.freqTextActive : styles.freqText}>Monthly</Text>
+              <Text style={frequency === 'monthly' ? styles.freqTextActive : styles.freqText}>
+                Monthly
+              </Text>
             </Pressable>
-            
+
             <Pressable
               style={[
-                styles.freqBtn, 
+                styles.freqBtn,
                 frequency === 'weekly' && styles.freqBtnActive,
-                !addOns.weeklyDca && styles.freqBtnDisabled
+                !addOns.weeklyDca && styles.freqBtnDisabled,
               ]}
               onPress={() => addOns.weeklyDca && setFrequency('weekly')}
               disabled={!addOns.weeklyDca}
             >
-              <Text style={
-                !addOns.weeklyDca 
-                  ? styles.freqTextDisabled 
-                  : frequency === 'weekly' ? styles.freqTextActive : styles.freqText
-              }>
+              <Text
+                style={
+                  !addOns.weeklyDca
+                    ? styles.freqTextDisabled
+                    : frequency === 'weekly'
+                    ? styles.freqTextActive
+                    : styles.freqText
+                }
+              >
                 Weekly {!addOns.weeklyDca && '(Add-on required)'}
               </Text>
             </Pressable>
@@ -122,20 +139,27 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
           {/* Custom Input */}
           {isCustom && (
             <View style={styles.inputWrapper}>
-              <Text style={styles.inputLabel}>Enter {frequency} amount (USD)</Text>
+              <Text style={styles.inputLabel}>
+                Enter {frequency} amount (EUR) {isFree && `— max €${FREE_PLAN_MAX_AMOUNT}`}
+              </Text>
               <View style={styles.inputRow}>
-                <Text style={styles.currencySymbol}>$</Text>
+                <Text style={styles.currencySymbol}>€</Text>
                 <TextInput
                   style={styles.input}
                   value={customValue}
                   onChangeText={handleCustomChange}
-                  placeholder="150"
+                  placeholder={isFree ? '500' : '1500'}
                   placeholderTextColor={COLORS.t3}
                   keyboardType="number-pad"
                   autoFocus
                   maxLength={6}
                 />
               </View>
+              {isFree && amount && amount >= FREE_PLAN_MAX_AMOUNT && (
+                <Text style={styles.limitWarning}>
+                  Free plan capped at €{FREE_PLAN_MAX_AMOUNT}. Upgrade to invest more.
+                </Text>
+              )}
             </View>
           )}
 
@@ -144,7 +168,11 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
             <Text style={styles.noteText}>
               {amount && amount > 0 ? (
                 <>
-                  That's <Text style={styles.noteStrong}>{fmtUSD(frequency === 'monthly' ? yearly : yearly * 4)}</Text> invested over the next 12 months.
+                  That's{' '}
+                  <Text style={styles.noteStrong}>
+                    {fmtUSD(frequency === 'monthly' ? yearly : yearly * 4)}
+                  </Text>{' '}
+                  invested over the next 12 months.
                 </>
               ) : (
                 'Select or enter an amount to continue.'
@@ -152,15 +180,14 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
             </Text>
           </View>
 
-          {/* Button pushed to the bottom of the scrollview */}
+          {/* Continue Button */}
           <View style={styles.buttonContainer}>
-            <Button 
-              label="Continue" 
-              disabled={!amount || amount <= 0} 
-              onPress={onContinue} 
+            <Button
+              label="Continue"
+              disabled={!amount || amount <= 0}
+              onPress={onContinue}
             />
           </View>
-          
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -181,27 +208,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: RADIUS.full,
   },
-  freqBtnActive: {
-    backgroundColor: COLORS.accent,
-  },
-  freqBtnDisabled: {
-    opacity: 0.5,
-  },
-  freqText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.t2,
-  },
-  freqTextActive: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  freqTextDisabled: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.t3,
-  },
+  freqBtnActive: { backgroundColor: COLORS.accent },
+  freqBtnDisabled: { opacity: 0.5 },
+  freqText: { fontSize: 14, fontWeight: '600', color: COLORS.t2 },
+  freqTextActive: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
+  freqTextDisabled: { fontSize: 14, fontWeight: '600', color: COLORS.t3 },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -234,13 +245,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.78,
     color: COLORS.t1,
   },
-  customSubtitle: {
-    fontSize: 12,
-    color: COLORS.t2,
-  },
-  inputWrapper: {
-    marginTop: SPACING.s4,
-  },
+  customSubtitle: { fontSize: 12, color: COLORS.t2 },
+  inputWrapper: { marginTop: SPACING.s4 },
   inputLabel: {
     fontSize: 13,
     color: COLORS.t2,
@@ -260,29 +266,17 @@ const styles = StyleSheet.create({
     color: COLORS.t1,
     marginRight: 8,
   },
-  input: {
-    flex: 1,
-    fontSize: 24,
-    fontWeight: '600',
-    color: COLORS.t1,
+  input: { flex: 1, fontSize: 24, fontWeight: '600', color: COLORS.t1 },
+  limitWarning: {
+    fontSize: 12,
+    color: COLORS.danger,
+    marginTop: SPACING.s2,
   },
-  note: { 
-    marginTop: SPACING.s5, 
-    alignItems: 'center', 
-    minHeight: 20 
-  },
-  noteText: { 
-    fontSize: 14, 
-    color: COLORS.t2, 
-    textAlign: 'center' 
-  },
-  noteStrong: { 
-    color: COLORS.t1, 
-    fontWeight: '600' 
-  },
-  // New container to push the button to the bottom
+  note: { marginTop: SPACING.s5, alignItems: 'center', minHeight: 20 },
+  noteText: { fontSize: 14, color: COLORS.t2, textAlign: 'center' },
+  noteStrong: { color: COLORS.t1, fontWeight: '600' },
   buttonContainer: {
-    marginTop: 'auto', 
+    marginTop: 'auto',
     paddingTop: SPACING.s5,
     paddingBottom: SPACING.s4,
   },

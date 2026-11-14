@@ -1,7 +1,7 @@
 // api/cron/dca.js
 
-import pool from '../_lib/db.js';
 import { normalizeEthUsdcWeights } from '../_lib/basket-weights.js';
+import pool from '../_lib/db.js';
 import { executeSwapBatch } from '../_lib/execute-swap.js';
 import { getSwapTransaction, resolveToken } from '../_lib/swap.js';
 

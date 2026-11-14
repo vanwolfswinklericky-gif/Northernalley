@@ -11,8 +11,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface PlanScreenProps {
   onBack: () => void;
-  onContinue: (plan: 'starter' | 'pro' | 'premium') => void;
-  onSkip: () => void;
+  onContinue: (plan: 'free' | 'starter' | 'pro' | 'premium') => void;
 }
 
 interface PlanFeature {
@@ -22,7 +21,7 @@ interface PlanFeature {
 }
 
 interface PlanDef {
-  id: 'starter' | 'pro' | 'premium';
+  id: 'free' | 'starter' | 'pro' | 'premium';
   name: string;
   price: number;
   tagline: string;
@@ -33,13 +32,30 @@ interface PlanDef {
 
 const PLANS: PlanDef[] = [
   {
+    id: 'free',
+    name: 'Free',
+    price: 0,
+    tagline: 'Start investing today',
+    highlights: ['1 active basket', 'Monthly DCA', 'Full portfolio view', 'Email support'],
+    details: [
+      { label: 'Active baskets', value: '1', included: true },
+      { label: 'DCA frequency', value: 'Monthly', included: true },
+      { label: 'Custom basket builder', value: '—', included: false },
+      { label: 'Instant buy', value: '—', included: false },
+      { label: 'Portfolio history (all-time)', value: '—', included: false },
+      { label: 'Tax report (CSV)', value: '—', included: false },
+      { label: 'Price alerts', value: '—', included: false },
+      { label: 'Support response time', value: '48 hours', included: true },
+    ],
+  },
+  {
     id: 'starter',
     name: 'Starter',
     price: 19.99,
     tagline: 'Perfect for getting started',
-    highlights: ['1 active basket', 'Monthly DCA', 'Full portfolio view', 'Email support (48h)'],
+    highlights: ['2 active baskets', 'Monthly DCA', 'Full portfolio view', 'Email support (48h)'],
     details: [
-      { label: 'Active baskets', value: '1', included: true },
+      { label: 'Active baskets', value: '2', included: true },
       { label: 'DCA frequency', value: 'Monthly', included: true },
       { label: 'Custom basket builder', value: '—', included: false },
       { label: 'Instant buy', value: 'Add-on €2.99', included: true },
@@ -86,8 +102,8 @@ const PLANS: PlanDef[] = [
   },
 ];
 
-export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
-  const [selected, setSelected] = useState<'starter' | 'pro' | 'premium'>('starter');
+export function PlanScreen({ onBack, onContinue }: PlanScreenProps) {
+  const [selected, setSelected] = useState<'free' | 'starter' | 'pro' | 'premium'>('free');
   const [expanded, setExpanded] = useState<string | null>(null);
   
   const { addOns, toggleAddOn } = usePlanStore();
@@ -100,11 +116,12 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
   const basePrice = selectedPlanObj ? selectedPlanObj.price : 0;
   
   const isWeeklyDcaIncluded = selected === 'pro' || selected === 'premium';
+  const isFree = selected === 'free';
   
   const addOnPrice = 
-    (addOns.extraBasket ? 4.99 : 0) + 
-    (!isWeeklyDcaIncluded && addOns.weeklyDca ? 7.99 : 0) + 
-    (addOns.prioritySupport ? 9.99 : 0);
+    (!isFree && addOns.extraBasket ? 4.99 : 0) + 
+    (!isWeeklyDcaIncluded && !isFree && addOns.weeklyDca ? 7.99 : 0) + 
+    (!isFree && addOns.prioritySupport ? 9.99 : 0);
     
   const totalPrice = basePrice + addOnPrice;
 
@@ -117,14 +134,9 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
       footer={
         <View style={{ paddingBottom: 24, gap: 12 }}>
           <Button
-            label={`Continue — €${totalPrice.toFixed(2)}/mo`}
+            label={totalPrice > 0 ? `Continue — €${totalPrice.toFixed(2)}/mo` : 'Continue with Free'}
             variant="accent"
             onPress={() => onContinue(selected)}
-          />
-          <Button
-            label="Skip for now"
-            variant="ghost"
-            onPress={onSkip}
           />
         </View>
       }
@@ -154,8 +166,8 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
                 </View>
 
                 <View style={styles.priceRow}>
-                  <Text style={styles.price}>€{plan.price}</Text>
-                  <Text style={styles.per}>/month</Text>
+                  <Text style={styles.price}>{plan.price === 0 ? 'Free' : `€${plan.price}`}</Text>
+                  {plan.price > 0 && <Text style={styles.per}>/month</Text>}
                 </View>
 
                 <View style={styles.features}>
@@ -167,7 +179,8 @@ export function PlanScreen({ onBack, onContinue, onSkip }: PlanScreenProps) {
                   ))}
                 </View>
 
-                {isSelected && (
+                {/* Only show add-ons for paid plans */}
+                {isSelected && !isFree && (
                   <View style={styles.inlineAddOns}>
                     <Text style={styles.inlineAddOnsTitle}>Optional Add-ons</Text>
                     
@@ -344,7 +357,7 @@ const styles = StyleSheet.create({
   },
   inlineAddOnRowActive: {
     backgroundColor: COLORS.accentSoft,
-    borderColor: COLORS.accentMedium,
+    borderColor: COLORS.accent,
   },
   addOnText: {
     fontSize: 14,

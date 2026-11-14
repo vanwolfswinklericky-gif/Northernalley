@@ -3,7 +3,7 @@
 import type { Basket } from '@/types/basket';
 import { create } from 'zustand';
 
-export type SubscriptionPlan = 'starter' | 'pro' | 'premium';
+export type SubscriptionPlan = 'free' | 'starter' | 'pro' | 'premium';
 
 export interface AddOns {
   extraBasket: boolean;
@@ -46,7 +46,7 @@ const initialState = {
   frequency: 'monthly' as const,
   email: null,
   plan: null,
-  currency: 'EUR', // Changed from USD to EUR
+  currency: 'EUR',
   addOns: initialAddOns,
 };
 
