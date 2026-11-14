@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "npm ci --legacy-peer-deps",
   "crons": [
     { "path": "/api/cron/dca", "schedule": "0 9 * * *" }
   ],
