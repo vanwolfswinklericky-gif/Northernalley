@@ -3,7 +3,7 @@
 import { AmountPill } from '@/components/ui/AmountPill';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
-import { AMOUNTS, fmtUSD } from '@/constants/baskets';
+import { AMOUNTS } from '@/constants/baskets';
 import { COLORS, RADIUS, SPACING } from '@/constants/theme';
 import { usePlanStore } from '@/store/planStore';
 import { useState } from 'react';
@@ -25,6 +25,9 @@ interface AmountScreenProps {
 
 const FREE_PLAN_MAX_AMOUNT = 1000;
 const PAID_PLAN_MAX_AMOUNT = 100000;
+const MIN_DAILY_AMOUNT = 20; // €20 minimum for daily to cover gas fees
+
+const fmtEUR = (n: number) => `€${n.toFixed(2)}`;
 
 export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
   const amount = usePlanStore((s) => s.amount);
@@ -37,6 +40,7 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
   const isFree = plan === 'free';
   const isPremium = plan === 'premium';
   const effectiveMax = isFree ? FREE_PLAN_MAX_AMOUNT : PAID_PLAN_MAX_AMOUNT;
+  const effectiveMin = frequency === 'daily' ? MIN_DAILY_AMOUNT : 1;
 
   const [isCustom, setIsCustom] = useState(false);
   const [customValue, setCustomValue] = useState('');
@@ -61,9 +65,9 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
 
   const yearly = (amount ?? 0) * 12;
 
-  // Helper to format the note for the current frequency
-  const frequencyLabel = frequency === 'monthly' ? 'month' : frequency === 'weekly' ? 'week' : 'day';
-  const yearlyMultiplier = frequency === 'monthly' ? 12 : frequency === 'weekly' ? 52 : 365;
+  // Validation logic
+  const isBelowMin = frequency === 'daily' && amount !== null && amount > 0 && amount < MIN_DAILY_AMOUNT;
+  const canContinue = amount !== null && amount > 0 && !isBelowMin;
 
   return (
     <Screen
@@ -176,7 +180,9 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
           {isCustom && (
             <View style={styles.inputWrapper}>
               <Text style={styles.inputLabel}>
-                Enter {frequency} amount (EUR) {isFree && `— max €${FREE_PLAN_MAX_AMOUNT}`}
+                Enter {frequency} amount (EUR) 
+                {isFree && ` — max €${FREE_PLAN_MAX_AMOUNT}`}
+                {frequency === 'daily' && ` — min €${MIN_DAILY_AMOUNT}`}
               </Text>
               <View style={styles.inputRow}>
                 <Text style={styles.currencySymbol}>€</Text>
@@ -191,9 +197,16 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
                   maxLength={6}
                 />
               </View>
+              
               {isFree && amount && amount >= FREE_PLAN_MAX_AMOUNT && (
                 <Text style={styles.limitWarning}>
                   Free plan capped at €{FREE_PLAN_MAX_AMOUNT}. Upgrade to invest more.
+                </Text>
+              )}
+              
+              {isBelowMin && (
+                <Text style={styles.limitWarning}>
+                  Daily DCA requires a minimum of €{MIN_DAILY_AMOUNT} to cover network gas fees.
                 </Text>
               )}
             </View>
@@ -206,7 +219,7 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
                 <>
                   That's{' '}
                   <Text style={styles.noteStrong}>
-                    {fmtUSD(frequency === 'monthly'
+                    {fmtEUR(frequency === 'monthly'
                       ? yearly
                       : frequency === 'weekly'
                       ? yearly * 4
@@ -224,7 +237,7 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
           <View style={styles.buttonContainer}>
             <Button
               label="Continue"
-              disabled={!amount || amount <= 0}
+              disabled={!canContinue}
               onPress={onContinue}
             />
           </View>

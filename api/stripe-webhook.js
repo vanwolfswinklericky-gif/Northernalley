@@ -93,17 +93,23 @@ async function handleCheckoutComplete(session) {
     return;
   }
 
-  // Ensure user exists
-  const userResult = await pool.query(`SELECT id FROM users WHERE privy_user_id = $1`, [privyUserId]);
-  let userId;
+  // Ensure user exists AND fetch wallet_address to prevent race condition
+  const userResult = await pool.query(
+    `SELECT id, wallet_address FROM users WHERE privy_user_id = $1`, 
+    [privyUserId]
+  );
+  
+  let userId, walletAddress;
   if (userResult.rows.length === 0) {
     const inserted = await pool.query(
-      `INSERT INTO users (privy_user_id, email) VALUES ($1, $2) RETURNING id`,
+      `INSERT INTO users (privy_user_id, email) VALUES ($1, $2) RETURNING id, wallet_address`,
       [privyUserId, session.customer_details?.email ?? null]
     );
     userId = inserted.rows[0].id;
+    walletAddress = inserted.rows[0].wallet_address;
   } else {
     userId = userResult.rows[0].id;
+    walletAddress = userResult.rows[0].wallet_address;
   }
 
   // Enforce Free plan cap
@@ -126,6 +132,7 @@ async function handleCheckoutComplete(session) {
     effectiveFrequency = 'monthly';
   }
 
+  // --- SUBSCRIPTION CREATION ---
   if (plan === 'free') {
     const lifetimeEnd = new Date();
     lifetimeEnd.setFullYear(lifetimeEnd.getFullYear() + 100);
@@ -161,21 +168,38 @@ async function handleCheckoutComplete(session) {
     log('info', 'Paid subscription activated', { userId, plan, addOns: addOnsString });
   }
 
-  // Create the DCA plan using the validated frequency
-  await pool.query(
-    `INSERT INTO dca_plans (user_id, basket_id, amount_usd, frequency, status, next_execution_date)
-     VALUES ($1, $2, $3, $4, 'active', NOW())
-     ON CONFLICT DO NOTHING`,
-    [userId, basketId, dcaAmount, effectiveFrequency]
-  );
+  // --- RACE CONDITION FIX: ONLY CREATE DCA PLAN IF WALLET EXISTS ---
+  if (walletAddress) {
+    await pool.query(
+      `INSERT INTO dca_plans (user_id, basket_id, amount_usd, frequency, status, next_execution_date)
+       VALUES ($1, $2, $3, $4, 'active', NOW())
+       ON CONFLICT DO NOTHING`,
+      [userId, basketId, dcaAmount, effectiveFrequency]
+    );
 
-  log('info', 'DCA plan created', {
-    userId,
-    basketId,
-    dcaAmount,
-    frequency: effectiveFrequency,
-    originalFrequency: frequency,
-  });
+    log('info', 'DCA plan created', {
+      userId,
+      basketId,
+      dcaAmount,
+      frequency: effectiveFrequency,
+    });
+  } else {
+    // Wallet isn't ready yet. Mark subscription so the sync-wallet endpoint can pick it up.
+    await pool.query(
+      `UPDATE subscriptions SET status = 'pending_wallet' WHERE user_id = $1`,
+      [userId]
+    );
+    
+    // Also save the pending DCA plan details so we know what to create later
+    // You can store this in a temp table or JSONB in the subscription. 
+    // For now, we log it.
+    log('warn', 'Wallet not synced — DCA plan deferred', { 
+      userId, 
+      basketId, 
+      dcaAmount, 
+      frequency: effectiveFrequency 
+    });
+  }
 }
 
 async function handleSubscriptionUpdated(subscription) {
@@ -215,5 +239,30 @@ async function handlePaymentFailed(invoice) {
      WHERE stripe_subscription_id = $1`,
     [subscriptionId]
   );
-  log('info', 'Subscription marked past_due', { stripeSubscriptionId: subscriptionId });
+
+  // --- PUSH NOTIFICATION FOR FAILED PAYMENT ---
+  const { rows } = await pool.query(
+    `SELECT u.push_token FROM subscriptions s JOIN users u ON u.id = s.user_id WHERE s.stripe_subscription_id = $1`,
+    [subscriptionId]
+  );
+
+  if (rows.length > 0 && rows[0].push_token) {
+    try {
+      await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: rows[0].push_token,
+          title: 'Action Required',
+          body: 'Your DCA payment failed. Please update your payment method to avoid interruptions.',
+          data: { screen: 'payment-settings' },
+        }),
+      });
+      log('info', 'Payment failure push sent', { subscriptionId });
+    } catch (pushError) {
+      log('warn', 'Failed to send push notification', { error: pushError.message });
+    }
+  }
+
+  log('warn', 'Subscription marked past_due', { stripeSubscriptionId: subscriptionId });
 }

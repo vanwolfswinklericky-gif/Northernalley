@@ -59,6 +59,59 @@ export default async function handler(req, res) {
     }
 
     // -----------------------------------------------------
+    // ROUTE: Sync Wallet Address (Race Condition Fix)
+    // -----------------------------------------------------
+    if (pathname === '/auth/sync-wallet') {
+      if (!privyUserId || !walletAddress) {
+        return res.status(400).json({ error: 'privyUserId and walletAddress are required' });
+      }
+
+      // 1. Save the wallet address
+      const userRes = await pool.query(
+        `UPDATE users SET wallet_address = $1 WHERE privy_user_id = $2 RETURNING id`,
+        [walletAddress, privyUserId]
+      );
+
+      if (userRes.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      const userId = userRes.rows[0].id;
+
+      // 2. Check if there's a pending subscription waiting for this wallet
+      const { rows: pendingSubs } = await pool.query(
+        `SELECT id FROM subscriptions WHERE user_id = $1 AND status = 'pending_wallet'`,
+        [userId]
+      );
+
+      if (pendingSubs.length > 0) {
+        // 3. Activate the subscription
+        await pool.query(
+          `UPDATE subscriptions SET status = 'active', updated_at = NOW() WHERE user_id = $1`,
+          [userId]
+        );
+
+        // 4. Create the DCA plan that was deferred
+        // Note: The DCA plan details (basket, amount, frequency) need to come from the client
+        // since they weren't saved in the pending state. The client should send them.
+        const { basketId, amount, frequency } = body;
+        
+        if (basketId && amount && frequency) {
+          await pool.query(
+            `INSERT INTO dca_plans (user_id, basket_id, amount_usd, frequency, status, next_execution_date)
+             VALUES ($1, $2, $3, $4, 'active', NOW())
+             ON CONFLICT DO NOTHING`,
+            [userId, basketId, Number(amount), frequency]
+          );
+        }
+
+        return res.status(200).json({ ok: true, activated: true, userId });
+      }
+
+      return res.status(200).json({ ok: true, activated: false, userId });
+    }
+
+    // -----------------------------------------------------
     // ROUTE: Register Password
     // -----------------------------------------------------
     if (pathname === '/auth/register-password') {

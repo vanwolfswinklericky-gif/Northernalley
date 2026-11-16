@@ -8,12 +8,13 @@ if (typeof (globalThis as any).crypto.randomUUID !== 'function') (globalThis as 
 if (typeof (globalThis as any).crypto.subtle === 'undefined') (globalThis as any).crypto.subtle = { digest: Crypto.digest };
 
 import { COLORS } from '@/constants/theme';
+import { usePlanStore } from '@/store/planStore'; // Import your store
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, useFonts } from '@expo-google-fonts/inter';
 import { isConnected, isNotCreated, needsRecovery, PrivyProvider, useEmbeddedWallet, usePrivy } from '@privy-io/expo';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StatusBar, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -23,22 +24,59 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 2, sta
 function RootNavigator() {
   const { user, isReady } = usePrivy();
   const wallet = useEmbeddedWallet();
+  const [isSyncingWallet, setIsSyncingWallet] = useState(false);
+  const hasSyncedRef = useRef(false); // Prevent infinite loop
 
   const loggedIn = !!user;
   const walletReady = isConnected(wallet);
   const walletNeedsRecovery = needsRecovery(wallet);
   const walletNotCreated = isNotCreated(wallet);
+  
+  // Get plan details for pending wallet sync
+  const { basketId, amount, frequency } = usePlanStore();
 
-  if (!isReady) {
-    return (
-      <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator color={COLORS.accent} />
-      </View>
-    );
-  }
+  // --- RACE CONDITION FIX: Sync Wallet on Login ---
+  useEffect(() => {
+    if (loggedIn && walletReady && wallet?.address && user?.id && !hasSyncedRef.current) {
+      hasSyncedRef.current = true; // Only try once per session
+      
+      const syncWallet = async () => {
+        setIsSyncingWallet(true);
+        try {
+          // Fetch user data to get the privyUserId
+          // Note: In Privy, user.id is the DID (did:privy:...) not the privyUserId from your DB.
+          // You need to ensure your frontend sends the correct identifier.
+          // Assuming your backend expects the DID:
+          const response = await fetch('https://your-app.vercel.app/api/auth/sync-wallet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              privyUserId: user.id,
+              walletAddress: wallet.address,
+              // Pass pending plan details if they exist in store
+              basketId: basketId || undefined,
+              amount: amount || undefined,
+              frequency: frequency || undefined,
+            }),
+          });
+          
+          const data = await response.json();
+          if (data.activated) {
+            console.log('Pending DCA subscription activated!');
+          }
+        } catch (err) {
+          console.warn('Wallet sync failed:', err);
+        } finally {
+          setIsSyncingWallet(false);
+        }
+      };
 
-  // If logged in but wallet is still loading/creating, show a loader
-  if (loggedIn && walletNotCreated) {
+      syncWallet();
+    }
+  }, [loggedIn, walletReady, wallet?.address, user?.id, basketId, amount, frequency]);
+
+  // Show loader while Privy initializes or wallet is being created
+  if (!isReady || (loggedIn && walletNotCreated) || isSyncingWallet) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator color={COLORS.accent} />

@@ -19,6 +19,7 @@ const ADDON_PRICES = {
 
 const DEPOSIT_FEE_RATE = 0.01;
 const FREE_PLAN_MAX_DEPOSIT = 1000;
+const MIN_DAILY_AMOUNT = 20; // €20 minimum for daily to cover gas fees
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -44,11 +45,19 @@ export default async function handler(req, res) {
   if (!privyUserId) return res.status(400).json({ error: 'privyUserId is required' });
   if (amount <= 0) return res.status(400).json({ error: 'Investment amount must be greater than 0' });
 
-  // Enforce Free plan cap
+  // 1. Enforce Free plan cap
   if (plan === 'free' && amount > FREE_PLAN_MAX_DEPOSIT) {
     return res.status(400).json({
       error: `Free plan is limited to €${FREE_PLAN_MAX_DEPOSIT} per deposit. Upgrade to invest more.`,
       code: 'FREE_PLAN_LIMIT_EXCEEDED',
+    });
+  }
+
+  // 2. Enforce Daily DCA minimum (Premium only feature, but still needs guard)
+  if (frequency === 'daily' && amount < MIN_DAILY_AMOUNT) {
+    return res.status(400).json({ 
+      error: `Daily DCA requires a minimum of €${MIN_DAILY_AMOUNT} per deposit to cover Base network gas fees.`,
+      code: 'AMOUNT_TOO_LOW_FOR_DAILY'
     });
   }
 
@@ -61,7 +70,7 @@ export default async function handler(req, res) {
     const selectedAddOns = [];
     const depositFee = amount * DEPOSIT_FEE_RATE;
 
-    // --- FREE PLAN ---
+    // --- FREE PLAN (One-time payment + Save Card for DCA) ---
     if (plan === 'free') {
       const one_time_items = [
         {
@@ -86,7 +95,9 @@ export default async function handler(req, res) {
         customer: customer.id,
         mode: 'payment',
         line_items: one_time_items,
-        payment_method_collection: 'always',
+        payment_intent_data: {
+          setup_future_usage: 'off_session',
+        },
         success_url: 'northernalley://(app)/success',
         cancel_url: 'northernalley://(app)/failure',
         metadata: {
@@ -102,7 +113,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ url: session.url, sessionId: session.id });
     }
 
-    // --- PAID PLANS ---
+    // --- PAID PLANS (Subscription + Add-ons) ---
     const priceId = PLAN_PRICES[plan];
     if (!priceId) return res.status(400).json({ error: `Invalid plan: ${plan}` });
 

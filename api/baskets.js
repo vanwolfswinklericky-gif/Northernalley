@@ -1,5 +1,6 @@
 // api/baskets.js
 
+import { parseUnits } from 'viem';
 import { normalizeEthUsdcWeights } from './_lib/basket-weights.js';
 import { pool } from './_lib/db.js';
 import { executeSwapBatch } from './_lib/execute-swap.js';
@@ -8,7 +9,7 @@ import { getSwapTransaction, resolveToken } from './_lib/swap.js';
 
 const WITHDRAWAL_FEE_RATE = 0.02;
 const DEPOSIT_FEE_RATE = 0.01;
-const USDC_DECIMALS = 1_000_000;
+const USDC_DECIMALS = 6; // Base USDC uses 6 decimals
 const MIN_SWAP_USD = 1;
 
 export default async function handler(req, res) {
@@ -162,11 +163,13 @@ export default async function handler(req, res) {
           return res.status(500).json({ error: 'Token resolution failed' });
         }
 
-        // 4. Build swaps
+        // 4. Build swaps (Bignumber Fix)
         const swaps = [];
         for (const asset of basketAssets) {
-          const usdcAmount = Math.floor(netAmount * asset.weight * USDC_DECIMALS);
-          if (usdcAmount < MIN_SWAP_USD * USDC_DECIMALS) continue;
+          const amountString = (netAmount * asset.weight).toFixed(USDC_DECIMALS);
+          const usdcAmount = parseUnits(amountString, USDC_DECIMALS);
+
+          if (usdcAmount < BigInt(MIN_SWAP_USD * 1_000_000)) continue;
 
           const targetToken = await resolveToken(asset.symbol);
           const swapData = await getSwapTransaction(
@@ -179,7 +182,7 @@ export default async function handler(req, res) {
           swaps.push({
             symbol: asset.symbol,
             toToken: targetToken.address,
-            usdcAmount,
+            usdcAmount: usdcAmount.toString(),
             transaction: swapData,
           });
         }
