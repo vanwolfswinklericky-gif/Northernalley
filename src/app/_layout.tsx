@@ -32,7 +32,6 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://northernalley.vercel
 function RootNavigator() {
   const { user, isReady } = usePrivy();
   const wallet = useEmbeddedWallet();
-  const [isSyncingWallet, setIsSyncingWallet] = useState(false);
   const [walletCreationError, setWalletCreationError] = useState<string | null>(null);
   const [walletCreationRetry, setWalletCreationRetry] = useState(0);
   const hasSyncedUserRef = useRef<string | null>(null);
@@ -76,9 +75,8 @@ function RootNavigator() {
       hasSyncedUserRef.current !== user.id
     ) {
       hasSyncedUserRef.current = user.id;
-      
+
       const syncWallet = async () => {
-        setIsSyncingWallet(true);
         try {
           const userResponse = await fetch(`${API_URL}/auth/sync-user`, {
             method: 'POST',
@@ -112,8 +110,6 @@ function RootNavigator() {
           }
         } catch (err) {
           console.warn('Wallet sync failed:', err);
-        } finally {
-          setIsSyncingWallet(false);
         }
       };
 
@@ -151,8 +147,9 @@ function RootNavigator() {
     );
   }
 
-  // Show loader while Privy initializes or wallet is being created
-  if (!isReady || (loggedIn && walletNotCreated) || isSyncingWallet) {
+  // Keep the router mounted only after the wallet is ready or recovery is required.
+  const walletSetupPending = loggedIn && !walletReady && !walletNeedsRecovery;
+  if (!isReady || walletSetupPending) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator color={COLORS.accent} />
