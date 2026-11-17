@@ -2,7 +2,8 @@
 import { create } from 'zustand';
 
 interface AuthState {
-  setHasActivePlan: any;
+  hasActivePlan: boolean;
+  setHasActivePlan: (hasActivePlan: boolean) => void;
   /** Whether the app is locked (requires local passcode to unlock) */
   isLocked: boolean;
   /** Whether the wallet has been created (used for routing decisions) */
@@ -12,8 +13,10 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
+  hasActivePlan: false,
   isLocked: false,
   hasWallet: false,
+  setHasActivePlan: (hasActivePlan) => set({ hasActivePlan }),
   setLocked: (isLocked) => set({ isLocked }),
   setHasWallet: (hasWallet) => set({ hasWallet }),
 }));

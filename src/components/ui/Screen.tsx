@@ -117,17 +117,21 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     flex: 1,
-    height: 4,
-    borderRadius: 4,
-    backgroundColor: '#E7E8EB',
+    height: 6, // Slightly thicker for premium look
+    borderRadius: 6,
+    backgroundColor: COLORS.soft, // Matches the screenshot's light gray track
     overflow: 'hidden',
     marginHorizontal: SPACING.s2,
   },
-  progressFill: { height: '100%', backgroundColor: COLORS.t1, borderRadius: 4 },
+  progressFill: {
+    height: '100%',
+    backgroundColor: COLORS.accent,
+    borderRadius: 6,
+  },
   titleBlock: { marginBottom: SPACING.s5 },
   h1: { ...TYPE.h1, color: COLORS.t1 },
   sub: { ...TYPE.sub, marginTop: SPACING.s2 },
-   footer: {
+  footer: {
     paddingTop: SPACING.s3,
     paddingBottom: SPACING.s3 + 100,
     backgroundColor: COLORS.bg,

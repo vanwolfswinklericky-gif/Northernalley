@@ -15,7 +15,6 @@ async function fetchTop20FromCMC() {
   const data = await res.json();
   return data.data.map((c) => ({
     symbol: c.symbol,
-    marketCap: c.quote.USD.market_cap,
   }));
 }
 
@@ -28,11 +27,12 @@ export default async function handler(req, res) {
   try {
     // 1. Fetch new top 20
     const newTop20 = await fetchTop20FromCMC();
-    const totalMarketCap = newTop20.reduce((sum, c) => sum + c.marketCap, 0);
-
+    if (newTop20.length !== 20) {
+      throw new Error(`Expected 20 assets from CoinMarketCap, received ${newTop20.length}.`);
+    }
     const newCoinsJSON = newTop20.map((c) => ({
       symbol: c.symbol,
-      weight: Number((c.marketCap / totalMarketCap).toFixed(4)),
+      weight: 0.05,
     }));
 
     // 2. Update the master basket definition
@@ -82,8 +82,8 @@ export default async function handler(req, res) {
           body: JSON.stringify({
             to: user.push_token,
             sound: 'default',
-            title: 'Top 20 Updated',
-            body: 'Your Top 20 basket has been updated with the latest market leaders.',
+            title: 'Top 20 basket refreshed',
+            body: 'The basket list now reflects the latest market leaders. Existing wallet holdings were not rebalanced.',
           }),
         }).catch(() => {});
       }

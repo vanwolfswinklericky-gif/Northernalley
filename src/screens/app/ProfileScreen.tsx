@@ -22,6 +22,7 @@ export function ProfileScreen({ onBack, onSignOut }: any) {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  // --- LIVE DATA FETCH ---
   useEffect(() => {
     if (!user?.id) return;
     fetch(`${API_URL}/api/me?privyUserId=${user.id}`)
@@ -29,11 +30,10 @@ export function ProfileScreen({ onBack, onSignOut }: any) {
       .then((data) => {
         setName(data.user?.name || '');
         setAvatarUrl(data.user?.avatarUrl || null);
-        // Auto-fill email from Privy if DB is empty
         setEmail(data.user?.email || (user as any).email?.address || '');
       })
       .catch(console.error);
-  }, [user?.id]);
+  }, [user]);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -56,7 +56,7 @@ export function ProfileScreen({ onBack, onSignOut }: any) {
       const data = await res.json();
       if (data.url) setAvatarUrl(data.url);
       else throw new Error('Upload failed');
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'Failed to upload image.');
     } finally {
       setUploading(false);
@@ -74,7 +74,7 @@ export function ProfileScreen({ onBack, onSignOut }: any) {
       });
       Alert.alert('Success', 'Profile updated successfully.');
       onBack();
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'Failed to update profile.');
     } finally {
       setLoading(false);
@@ -100,7 +100,7 @@ export function ProfileScreen({ onBack, onSignOut }: any) {
                 body: JSON.stringify({ privyUserId: user.id }),
               });
               await logout();
-            } catch (err) {
+            } catch {
               Alert.alert('Error', 'Failed to delete account.');
               setLoading(false);
             }
@@ -114,53 +114,156 @@ export function ProfileScreen({ onBack, onSignOut }: any) {
     <Screen
       onBack={onBack}
       title="Profile"
-      footer={<Button label="Save Changes" loading={loading} onPress={handleSave} />}
+      footer={
+        <View style={{ paddingBottom: 24 }}>
+          <Button label="Save Changes" loading={loading} onPress={handleSave} variant="accent" />
+        </View>
+      }
     >
+      {/* Avatar Section */}
       <View style={styles.avatarWrap}>
         <Pressable onPress={pickImage} style={styles.avatar} disabled={uploading}>
           {avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
           ) : (
-            <Text style={styles.avatarText}>{name ? name.substring(0, 2).toUpperCase() : 'U'}</Text>
+            <Text style={styles.avatarText}>
+              {name ? name.substring(0, 2).toUpperCase() : 'U'}
+            </Text>
           )}
+          
+          {/* Camera Button */}
           <View style={styles.camera}>
-            {uploading ? <ActivityIndicator size="small" color={COLORS.accent} /> : <Ionicons name="camera-outline" size={18} color={COLORS.accent} />}
+            {uploading ? (
+              <ActivityIndicator size="small" color={COLORS.accent} />
+            ) : (
+              <Ionicons name="camera" size={18} color="#fff" />
+            )}
           </View>
         </Pressable>
+        <Text style={styles.changePhotoText}>Tap to change photo</Text>
       </View>
 
-      <Container>
-        <View style={{ marginBottom: SPACING.md }}>
-          <TextInput label="Full Name" value={name} onChange={setName} placeholder="John Doe" autoCapitalize="words" />
-        </View>
-        <View>
-          <TextInput label="Email" value={email} onChange={setEmail} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" editable={false} />
-        </View>
+      {/* Input Form */}
+      <Container style={styles.formCard}>
+        <TextInput 
+          label="Full Name" 
+          value={name} 
+          onChange={setName} 
+          placeholder="John Doe" 
+          autoCapitalize="words" 
+        />
+        <TextInput 
+          label="Email Address" 
+          value={email} 
+          onChange={setEmail} 
+          placeholder="you@example.com" 
+          keyboardType="email-address" 
+          autoCapitalize="none" 
+          editable={false} // Fixed: Prevents editing the email
+        />
       </Container>
 
       {/* Danger Zone */}
       <Container style={styles.dangerZone}>
         <View style={styles.dangerHeader}>
-          <Ionicons name="warning-outline" size={20} color={COLORS.danger} />
+          <Ionicons name="warning" size={20} color={COLORS.danger} />
           <Text style={styles.dangerTitle}>Danger Zone</Text>
         </View>
         <Text style={styles.dangerText}>
           Once you delete your account, there is no going back. Please be certain.
         </Text>
-        <Button label="Delete Account" variant="danger" loading={loading} onPress={handleDeleteAccount} />
+        <Button 
+          label="Delete Account" 
+          variant="danger" 
+          loading={loading} 
+          onPress={handleDeleteAccount} 
+        />
       </Container>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  avatarWrap: { alignItems: 'center', marginBottom: SPACING.s5 },
-  avatar: { width: 96, height: 96, borderRadius: 48, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', overflow: 'visible', borderWidth: 3, borderColor: COLORS.accentMedium },
-  avatarImage: { width: 96, height: 96, borderRadius: 48 },
-  avatarText: { color: '#fff', fontSize: 32, fontWeight: '600' },
-  camera: { position: 'absolute', right: 0, bottom: 0, width: 34, height: 34, borderRadius: 17, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.line },
-  dangerZone: { marginTop: SPACING.s5, padding: 20, backgroundColor: COLORS.downSoft, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: '#FCA5A5' },
-  dangerHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  dangerTitle: { color: COLORS.danger, fontSize: 16, fontWeight: '600' },
-  dangerText: { color: COLORS.danger, fontSize: 13, marginBottom: 16, lineHeight: 18, opacity: 0.8 },
+  avatarWrap: { 
+    alignItems: 'center', 
+    marginBottom: SPACING.s5,
+    marginTop: 10,
+  },
+  avatar: { 
+    width: 104, 
+    height: 104, 
+    borderRadius: 52, 
+    backgroundColor: COLORS.accentSoft, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    overflow: 'visible', 
+    borderWidth: 2, 
+    borderColor: COLORS.accentMedium,
+    marginBottom: 8,
+  },
+  avatarImage: { 
+    width: 100, 
+    height: 100, 
+    borderRadius: 50 
+  },
+  avatarText: { 
+    color: COLORS.accent, 
+    fontSize: 36, 
+    fontWeight: '700' 
+  },
+  camera: { 
+    position: 'absolute', 
+    right: 0, 
+    bottom: 0, 
+    width: 36, 
+    height: 36, 
+    borderRadius: 18, 
+    backgroundColor: COLORS.accent, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    borderWidth: 3, 
+    borderColor: COLORS.bg 
+  },
+  changePhotoText: {
+    fontSize: 13,
+    color: COLORS.accent,
+    fontWeight: '600',
+  },
+  formCard: {
+    padding: 20,
+    borderRadius: RADIUS.xl,
+    backgroundColor: COLORS.card,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 12,
+    elevation: 2,
+    marginBottom: 20,
+  },
+  dangerZone: { 
+    padding: 20, 
+    backgroundColor: COLORS.downSoft, 
+    borderRadius: RADIUS.xl, 
+    borderWidth: 1, 
+    borderColor: '#FCA5A5',
+    marginBottom: 20,
+  },
+  dangerHeader: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 8, 
+    marginBottom: 8 
+  },
+  dangerTitle: { 
+    color: COLORS.danger, 
+    fontSize: 16, 
+    fontWeight: '700' 
+  },
+  dangerText: { 
+    color: COLORS.danger, 
+    fontSize: 13, 
+    marginBottom: 16, 
+    lineHeight: 18, 
+    opacity: 0.8 
+  },
 });

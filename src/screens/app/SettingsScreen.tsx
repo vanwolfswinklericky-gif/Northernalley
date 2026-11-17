@@ -13,7 +13,11 @@ import { registerForPushNotifications } from '@/lib/notifications';
 import { usePlanStore } from '@/store/planStore';
 import { usePortfolioStore } from '@/store/portfolioStore';
 import { Ionicons } from '@expo/vector-icons';
-import { useEmbeddedWallet, useMfaEnrollment, usePrivy } from '@privy-io/expo';
+import {
+  getAllUserEmbeddedEthereumWallets,
+  useMfaEnrollment,
+  usePrivy,
+} from '@privy-io/expo';
 import { useLinkWithPasskey } from '@privy-io/expo/passkey';
 import { useEffect, useState } from 'react';
 import {
@@ -24,34 +28,31 @@ import {
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://northernalley.vercel.app';
 
 interface SettingsScreenProps {
-  onTab: (key: string) => void;
   onProfile: () => void;
   onWallet: () => void;
   onAbout: () => void;
   onPolicies: () => void;
   onPlan: () => void;
+  onSupport: () => void;
   onSignOut: () => void;
 }
 
 export function SettingsScreen({
-  onTab, onProfile, onWallet, onAbout, onPolicies, onPlan, onSignOut,
+  onProfile, onWallet, onAbout, onPolicies, onPlan, onSupport, onSignOut,
 }: SettingsScreenProps) {
   const { user, logout } = usePrivy();
-  const wallet = useEmbeddedWallet();
   const { plan, status } = useSubscription();
   const { rates, isLoading: ratesLoading, currency } = useExchangeRates();
   const { setCurrency, reset: clearPlan } = usePlanStore();
   const clearPortfolio = usePortfolioStore((s) => s.clear);
 
-  // Passkey Hooks
   const { linkWithPasskey } = useLinkWithPasskey();
   const { initMfaEnrollment, submitMfaEnrollment, unenrollMfa } = useMfaEnrollment();
 
   const [dbUser, setDbUser] = useState<{ name: string; email: string; avatarUrl?: string } | null>(null);
   
-  // Settings state
   const [notif, setNotif] = useState(false);
-  const [bio, setBio] = useState(false);
+  const [bioOverride, setBioOverride] = useState<boolean | null>(null);
   const [loadingBio, setLoadingBio] = useState(false);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,16 +73,10 @@ export function SettingsScreen({
         }
       })
       .catch(console.error);
-  }, [user?.id]);
-
-  // 2. Check if user already has Passkey MFA enrolled
-  useEffect(() => {
-    if (user) {
-      // Check if 'passkey' is in the user's mfaMethods array
-      const hasPasskeyMfa = (user as any).mfaMethods?.includes('passkey');
-      setBio(!!hasPasskeyMfa);
-    }
   }, [user]);
+
+  const hasPasskeyMfa = (user as any)?.mfaMethods?.includes('passkey') ?? false;
+  const bio = bioOverride ?? hasPasskeyMfa;
 
   // 3. Real Biometric Toggle Flow
   const handleBiometricToggle = async () => {
@@ -91,36 +86,33 @@ export function SettingsScreen({
     try {
       if (!bio) {
         // --- TURNING ON ---
-        // Step A: Check if user has a passkey linked. If not, link one.
-        const hasPasskeyLinked = user.linkedAccounts?.some(
+        const hasPasskeyLinked = user.linked_accounts?.some(
           (account) => account.type === 'passkey'
         );
 
         if (!hasPasskeyLinked) {
           await linkWithPasskey({
-            relyingParty: 'https://northernalley.vercel.app', // Your Vercel domain
+            relyingParty: 'https://northernalley.vercel.app',
           });
         }
 
-        // Step B: Enroll the passkey for MFA
         await initMfaEnrollment({ method: 'passkey' });
         
-        // Step C: Submit the enrollment with the credential IDs
-        const credentialIds = (user.linkedAccounts || [])
+        const credentialIds = (user.linked_accounts || [])
           .filter((account) => account.type === 'passkey')
-          .map((account: any) => account.credentialId);
+          .map((account) => account.credential_id);
 
         if (credentialIds.length === 0) {
           throw new Error('No passkey credential found after linking.');
         }
 
         await submitMfaEnrollment({ method: 'passkey', credentialIds });
-        setBio(true);
+        setBioOverride(true);
         Alert.alert('Success', 'Biometric MFA enabled.');
       } else {
         // --- TURNING OFF ---
         await unenrollMfa({ method: 'passkey', removeForLogin: false });
-        setBio(false);
+        setBioOverride(false);
         Alert.alert('Disabled', 'Biometric MFA has been turned off.');
       }
     } catch (err: any) {
@@ -134,11 +126,16 @@ export function SettingsScreen({
   const handleNotifToggle = async (value: boolean) => {
     if (value) {
       if (!user?.id) return;
-      const token = await registerForPushNotifications(user.id);
-      if (token) {
-        setNotif(true);
-      } else {
-        Alert.alert('Permission Denied', 'Please enable notifications in your device settings.');
+      try {
+        const token = await registerForPushNotifications(user.id);
+        if (token) {
+          setNotif(true);
+        } else {
+          Alert.alert('Notifications unavailable', 'Please enable notifications in your device settings.');
+        }
+      } catch (error) {
+        console.error('Notification registration failed:', error);
+        Alert.alert('Error', 'Could not enable notifications. Please try again.');
       }
     } else {
       setNotif(false);
@@ -167,7 +164,7 @@ export function SettingsScreen({
       } else {
         Alert.alert('Error', 'No billing data found.');
       }
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'Could not open billing portal.');
     } finally {
       setLoadingPortal(false);
@@ -182,23 +179,33 @@ export function SettingsScreen({
         text: 'Sign Out',
         style: 'destructive',
         onPress: async () => {
-          if (user?.id) {
-            await fetch(`${API_URL}/auth/signout`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ privyUserId: user.id }),
-            }).catch(() => {});
+          try {
+            if (user?.id) {
+              const response = await fetch(`${API_URL}/auth/signout`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ privyUserId: user.id }),
+              });
+              if (!response.ok) {
+                console.warn(`Server-side sign-out failed (HTTP ${response.status}).`);
+              }
+            }
+            await logout();
+            clearPlan();
+            clearPortfolio();
+            onSignOut();
+          } catch (error) {
+            console.error('Sign-out failed:', error);
+            Alert.alert('Sign Out Failed', 'Please try again.');
           }
-          await logout();
-          clearPlan();
-          clearPortfolio();
-          onSignOut();
         },
       },
     ]);
   };
 
-  const walletAddress = wallet.status === 'connected' ? wallet.address : null;
+  const walletAddress = user
+    ? getAllUserEmbeddedEthereumWallets(user)[0]?.address ?? null
+    : null;
   const truncateAddress = (addr: string | null) => {
     if (!addr) return 'Not connected';
     return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
@@ -218,15 +225,13 @@ export function SettingsScreen({
       )
     : availableCurrencies;
 
-  const tabs = <FloatingTabBar active="settings" onChange={onTab} />;
-
   return (
-    <Screen title="Settings" tabs={tabs}>
+    <Screen title="Settings" tabs={<FloatingTabBar />}>
       
       {/* Profile Card */}
       <Container
         onPress={onProfile}
-        style={[styles.profileCard, { backgroundColor: COLORS.accentSoft, borderWidth: 1, borderColor: COLORS.accentMedium }]}
+        style={styles.profileCard}
       >
         <View style={styles.avatar}>
           {dbUser?.avatarUrl ? (
@@ -243,14 +248,14 @@ export function SettingsScreen({
       </Container>
 
       {/* Subscription Banner */}
-      <Container style={[styles.subCard, { backgroundColor: COLORS.accentSoft }]}>
+      <Container style={styles.subCard}>
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>Current Subscription</Text>
-          <Text style={[styles.subName, { color: COLORS.accentText }]}>
+          <Text style={styles.subName}>
             {plan ? `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan` : 'No Active Plan'}
           </Text>
         </View>
-        <View style={[styles.subBadge, status === 'active' ? { backgroundColor: COLORS.upSoft } : styles.subBadgeInactive]}>
+        <View style={[styles.subBadge, status === 'active' ? styles.badgeActive : styles.badgeInactive]}>
           <Text style={[styles.subBadgeText, { color: status === 'active' ? COLORS.up : COLORS.t2 }]}>
             {status === 'active' ? 'Active' : 'Inactive'}
           </Text>
@@ -296,9 +301,9 @@ export function SettingsScreen({
 
       <SectionHeader title="Company" />
       <Container flush>
-        <ListRow icon="information-circle-outline" title="About Northernalley" chevron onPress={onAbout} iconColor={COLORS.accent} />
+        <ListRow icon="information-circle-outline" title="About NorthernAlley" chevron onPress={onAbout} iconColor={COLORS.accent} />
         <ListRow icon="document-text-outline" title="Policies" chevron onPress={onPolicies} iconColor={COLORS.accent} />
-        <ListRow icon="chatbubble-outline" title="Contact support" chevron onPress={() => Linking.openURL('mailto:support@northernalley.com')} iconColor={COLORS.accent} last />
+        <ListRow icon="help-circle-outline" title="Help & Support" chevron onPress={onSupport} iconColor={COLORS.accent} last />
       </Container>
 
       <View style={{ marginTop: 32 }}>
@@ -316,7 +321,7 @@ export function SettingsScreen({
               <Ionicons name="close-circle" size={28} color={COLORS.t2} />
             </Pressable>
           </View>
-          <View style={[styles.searchBox, { backgroundColor: COLORS.accentSoft }]}>
+          <View style={styles.searchBox}>
             <Ionicons name="search" size={20} color={COLORS.accent} />
             <TextInput
               style={styles.searchInput}
@@ -335,7 +340,7 @@ export function SettingsScreen({
             <FlatList
               data={filteredCurrencies}
               keyExtractor={(item) => item.code}
-              contentContainerStyle={{ padding: SPACING.md }}
+              contentContainerStyle={{ padding: SPACING.s3 }}
               renderItem={({ item }) => {
                 const isActive = currency === item.code;
                 const sampleFormat = new Intl.NumberFormat('en-US', {
@@ -345,7 +350,7 @@ export function SettingsScreen({
 
                 return (
                   <Pressable
-                    style={[styles.currencyRow, isActive && { backgroundColor: COLORS.accentSoft, borderWidth: 1, borderColor: COLORS.accentMedium }]}
+                    style={[styles.currencyRow, isActive && styles.currencyRowActive]}
                     onPress={() => {
                       setCurrency(item.code);
                       setShowCurrencyModal(false);
@@ -376,30 +381,61 @@ export function SettingsScreen({
 }
 
 const styles = StyleSheet.create({
-  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 12, borderRadius: RADIUS.lg },
-  avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  profileCard: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 16, 
+    marginBottom: 16, 
+    padding: 20,
+    borderRadius: RADIUS.xl,
+    backgroundColor: COLORS.accentSoft,
+    borderWidth: 1,
+    borderColor: COLORS.accentMedium,
+  },
+  avatar: { 
+    width: 56, 
+    height: 56, 
+    borderRadius: 28, 
+    backgroundColor: COLORS.accent, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    overflow: 'hidden' 
+  },
   avatarImage: { width: 56, height: 56, borderRadius: 28 },
-  avatarText: { color: '#fff', fontWeight: '600', fontSize: 20 },
-  profileName: { fontSize: 17, fontWeight: '600', color: COLORS.t1, textTransform: 'capitalize' },
+  avatarText: { color: '#fff', fontWeight: '700', fontSize: 20 },
+  profileName: { fontSize: 18, fontWeight: '700', color: COLORS.t1 },
   profileEmail: { fontSize: 13, color: COLORS.t2, marginTop: 2 },
 
-  label: { fontSize: 13, color: COLORS.accentText, fontWeight: '500' },
-  subCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: RADIUS.lg },
-  subName: { fontSize: 18, fontWeight: '600', marginTop: 4 },
+  label: { fontSize: 13, color: COLORS.accentText, fontWeight: '600' },
+  subCard: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 20, 
+    borderRadius: RADIUS.xl,
+    backgroundColor: COLORS.card,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  subName: { fontSize: 18, fontWeight: '700', color: COLORS.t1, marginTop: 4 },
   subBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
-  subBadgeInactive: { backgroundColor: COLORS.soft },
+  badgeActive: { backgroundColor: COLORS.upSoft },
+  badgeInactive: { backgroundColor: COLORS.soft },
   subBadgeText: { fontSize: 12, fontWeight: '700' },
 
   version: { textAlign: 'center', fontSize: 12, color: COLORS.t3, marginTop: SPACING.s3 },
 
   modalSafe: { flex: 1, backgroundColor: COLORS.bg },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACING.md, borderBottomWidth: 1, borderBottomColor: COLORS.line },
-  modalTitle: { fontSize: 20, fontWeight: '600', color: COLORS.t1 },
-  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: SPACING.md, paddingHorizontal: SPACING.md, height: 48, borderRadius: RADIUS.md },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACING.s3, borderBottomWidth: 1, borderBottomColor: COLORS.line },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: COLORS.t1 },
+  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: SPACING.s3, paddingHorizontal: SPACING.s3, height: 48, borderRadius: RADIUS.lg, backgroundColor: COLORS.accentSoft },
   searchInput: { flex: 1, fontSize: 16, color: COLORS.t1 },
-  currencyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: SPACING.md, paddingHorizontal: SPACING.md, borderRadius: RADIUS.md, marginBottom: 4, borderWidth: 1, borderColor: 'transparent' },
+  currencyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: SPACING.s3, paddingHorizontal: SPACING.s3, borderRadius: RADIUS.md, marginBottom: 4, borderWidth: 1, borderColor: 'transparent' },
+  currencyRowActive: { backgroundColor: COLORS.accentSoft, borderColor: COLORS.accentMedium },
   currencyRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  currencySymbol: { fontSize: 20, fontWeight: '600', color: COLORS.t1, width: 40, textAlign: 'center' },
+  currencySymbol: { fontSize: 20, fontWeight: '700', color: COLORS.t1, width: 40, textAlign: 'center' },
   currencyCode: { fontSize: 16, fontWeight: '600', color: COLORS.t1 },
   currencyName: { fontSize: 13, color: COLORS.t2, marginTop: 2 },
 });

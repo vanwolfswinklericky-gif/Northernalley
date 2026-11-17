@@ -2,13 +2,13 @@
 
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
-import { TextInput } from '@/components/ui/TextInput';
-import { COLORS } from '@/constants/theme';
+import { COLORS, RADIUS } from '@/constants/theme';
 import { usePlanStore } from '@/store/planStore';
+import { Ionicons } from '@expo/vector-icons';
 import { useLoginWithEmail, useLoginWithOAuth, usePrivy } from '@privy-io/expo';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://northernalley.vercel.app';
@@ -16,64 +16,74 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://northernalley.vercel
 export function EmailScreen() {
   const router = useRouter();
   const setEmail = usePlanStore((s) => s.setEmail);
-  const { user } = usePrivy(); // Needed to get the ID right after Google login
+  const { user } = usePrivy();
 
   const [email, setLocalEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [step, setStep] = useState<'email' | 'password'>('email');
   const [checking, setChecking] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleAuthReady, setGoogleAuthReady] = useState(false);
 
   const { sendCode } = useLoginWithEmail();
 
   const { login: loginWithGoogle } = useLoginWithOAuth({
-    onSuccess: async () => {
-      // 1. Give Privy a moment to populate the `user` object
-      setTimeout(async () => {
-        if (!user?.id) {
-          setError('Google login failed. User object not found.');
-          setGoogleLoading(false);
-          return;
-        }
-
-        try {
-          // 2. Sync with your backend to determine if this is a new or existing user
-          const res = await fetch(`${API_URL}/auth/sync-user`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              privyUserId: user.id,
-              email: (user as any).email?.address || null,
-            }),
-          });
-
-          const data = await res.json();
-
-          // 3. Route based on whether they are new
-          if (data.isNewUser) {
-            router.replace('/(auth)/plan'); // New user -> onboarding
-          } else {
-            router.replace('/(app)/(tabs)/dashboard'); // Existing user -> dashboard
-          }
-        } catch (err) {
-          // Fallback: If backend fails, just send them to dashboard
-          console.error('Google sync failed:', err);
-          router.replace('/(app)/(tabs)/dashboard');
-        } finally {
-          setGoogleLoading(false);
-        }
-      }, 800); // 800ms delay to let Privy hydrate the `user` hook
-    },
+    onSuccess: () => setGoogleAuthReady(true),
     onError: (err) => {
       setError(err.message || 'Google sign in failed');
       setGoogleLoading(false);
     },
   });
 
-  // Step 1: check if user exists
+  useEffect(() => {
+    if (!googleAuthReady || !user?.id) return;
+
+    let active = true;
+    const syncGoogleUser = async () => {
+      try {
+        const res = await fetch(`${API_URL}/auth/sync-user`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            privyUserId: user.id,
+            email: (user as any).email?.address || null,
+          }),
+        });
+        if (!res.ok) throw new Error(`Account sync failed (HTTP ${res.status}).`);
+
+        const data = await res.json();
+        if (active) {
+          router.replace(
+            data.isNewUser ? '/(app)/plan' : '/(app)/(tabs)/dashboard',
+          );
+        }
+      } catch (error) {
+        if (active) {
+          console.error('Google account sync failed:', error);
+          Alert.alert(
+            'Account sync failed',
+            'Your sign-in succeeded, but account setup could not finish. Please try again.',
+          );
+          router.replace('/(app)/(tabs)/dashboard');
+        }
+      } finally {
+        if (active) {
+          setGoogleLoading(false);
+          setGoogleAuthReady(false);
+        }
+      }
+    };
+
+    syncGoogleUser();
+    return () => {
+      active = false;
+    };
+  }, [googleAuthReady, user, router]);
+
   const handleEmailContinue = async () => {
     if (!EMAIL_RE.test(email)) return;
     setChecking(true);
@@ -87,26 +97,24 @@ export function EmailScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: normalizedEmail }),
       });
+      if (!res.ok) throw new Error(`Email lookup failed (HTTP ${res.status}).`);
 
       const data = await res.json();
 
       if (data.exists) {
-        // Returning user → show password
         setLocalEmail(normalizedEmail);
         setStep('password');
       } else {
-        // New user → go to create account
         setEmail(normalizedEmail);
         router.push('/(auth)/create-account');
       }
-    } catch (err: any) {
+    } catch {
       setError('Could not check email. Try again.');
     } finally {
       setChecking(false);
     }
   };
 
-  // Step 2: verify password for returning user
   const handlePasswordSubmit = async () => {
     if (password.length === 0) {
       setError('Please enter your password.');
@@ -153,8 +161,8 @@ export function EmailScreen() {
     <Screen
       onBack={() => (step === 'password' ? setStep('email') : router.back())}
       progress={1 / 10}
-      title={step === 'email' ? 'Sign in' : 'Enter your password'}
-      subtitle={step === 'email' ? 'Enter your email to continue.' : `Welcome back, ${email}`}
+      title={step === 'email' ? 'Welcome to NorthernAlley' : 'Welcome back'}
+      subtitle={step === 'email' ? 'Sign in or create an account to continue.' : `Enter your password for ${email}`}
       footer={
         <View style={styles.footer}>
           {error && <Text style={styles.errorText}>{error}</Text>}
@@ -165,6 +173,7 @@ export function EmailScreen() {
               disabled={!EMAIL_RE.test(email) || googleLoading}
               loading={checking}
               onPress={handleEmailContinue}
+              variant="accent"
             />
           ) : (
             <Button
@@ -172,6 +181,7 @@ export function EmailScreen() {
               disabled={password.length === 0}
               loading={emailLoading}
               onPress={handlePasswordSubmit}
+              variant="accent"
             />
           )}
 
@@ -179,7 +189,7 @@ export function EmailScreen() {
             <>
               <View style={styles.divider}>
                 <View style={styles.line} />
-                <Text style={styles.dividerText}>or</Text>
+                <Text style={styles.dividerText}>OR</Text>
                 <View style={styles.line} />
               </View>
 
@@ -204,53 +214,128 @@ export function EmailScreen() {
                   </>
                 )}
               </Pressable>
-
-              <Pressable
-                onPress={() => router.push('/(auth)/create-account')}
-                style={{ marginTop: 16, alignItems: 'center' }}
-              >
-                <Text style={{ color: COLORS.t3, fontSize: 13 }}>New here? Create an account</Text>
-              </Pressable>
             </>
           )}
         </View>
       }
     >
       {step === 'email' ? (
-        <TextInput
-          label="Email"
-          value={email}
-          onChange={setLocalEmail}
-          placeholder="you@example.com"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoFocus
-        />
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Email address</Text>
+          <View style={styles.inputRow}>
+            <Ionicons name="mail-outline" size={20} color={COLORS.t3} style={{ marginRight: 8 }} />
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setLocalEmail}
+              placeholder="you@example.com"
+              placeholderTextColor={COLORS.t3}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoFocus
+            />
+          </View>
+        </View>
       ) : (
-        <TextInput
-          label="Password"
-          value={password}
-          onChange={setPassword}
-          placeholder="••••••••"
-          secureTextEntry
-          autoFocus
-        />
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Password</Text>
+          <View style={styles.inputRow}>
+            <Ionicons name="lock-closed-outline" size={20} color={COLORS.t3} style={{ marginRight: 8 }} />
+            <TextInput
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••••"
+              placeholderTextColor={COLORS.t3}
+              secureTextEntry={!showPassword}
+              autoFocus
+            />
+            <Pressable onPress={() => setShowPassword(!showPassword)}>
+              <Ionicons 
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
+                size={20} 
+                color={COLORS.t3} 
+              />
+            </Pressable>
+          </View>
+        </View>
       )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  footer: { paddingBottom: 40, gap: 16 },
-  errorText: { color: COLORS.danger, fontSize: 13, textAlign: 'center', marginBottom: 8 },
-  divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 4 },
-  line: { flex: 1, height: 1, backgroundColor: COLORS.line },
-  dividerText: { fontSize: 13, color: COLORS.t3, fontWeight: '500' },
-  googleBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    height: 56, borderRadius: 999, backgroundColor: '#FFFFFF',
-    borderWidth: 1, borderColor: COLORS.line, gap: 12,
+  footer: { 
+    paddingBottom: 40, 
+    gap: 16 
   },
-  googleIcon: { width: 22, height: 22 },
-  googleBtnText: { fontSize: 16, fontWeight: '600', color: COLORS.t1 },
+  errorText: { 
+    color: COLORS.danger, 
+    fontSize: 13, 
+    textAlign: 'center', 
+    fontWeight: '600',
+    marginBottom: 8 
+  },
+  divider: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 12, 
+    marginVertical: 8 
+  },
+  line: { 
+    flex: 1, 
+    height: 1, 
+    backgroundColor: COLORS.line 
+  },
+  dividerText: { 
+    fontSize: 12, 
+    color: COLORS.t3, 
+    fontWeight: '600',
+    letterSpacing: 1
+  },
+  googleBtn: {
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    height: 56, 
+    borderRadius: RADIUS.full, 
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5, 
+    borderColor: COLORS.line, 
+    gap: 12,
+  },
+  googleIcon: { 
+    width: 24, 
+    height: 24 
+  },
+  googleBtnText: { 
+    fontSize: 16, 
+    fontWeight: '600', 
+    color: COLORS.t1 
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.t1,
+    marginBottom: 8,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    borderWidth: 1.5,
+    borderColor: COLORS.line,
+    borderRadius: RADIUS.lg,
+    height: 60,
+    paddingHorizontal: 16,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: COLORS.t1,
+    height: '100%',
+  },
 });

@@ -2,30 +2,32 @@
 
 import { COLORS, RADIUS } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { usePathname, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 export const TABS = [
-  { key: 'dashboard', label: 'Home', icon: 'home-outline', iconOn: 'home' },
-  { key: 'performance', label: 'Performance', icon: 'trending-up-outline', iconOn: 'trending-up' },
-  { key: 'activity', label: 'Activity', icon: 'receipt-outline', iconOn: 'receipt' },
-  { key: 'settings', label: 'Settings', icon: 'settings-outline', iconOn: 'settings' },
+  { key: 'dashboard', label: 'Home', icon: 'home-outline', iconOn: 'home', route: '/(app)/(tabs)/dashboard' },
+  { key: 'performance', label: 'Performance', icon: 'trending-up-outline', iconOn: 'trending-up', route: '/(app)/(tabs)/performance' },
+  { key: 'activity', label: 'Activity', icon: 'receipt-outline', iconOn: 'receipt', route: '/(app)/(tabs)/activity' },
+  { key: 'settings', label: 'Settings', icon: 'settings-outline', iconOn: 'settings', route: '/(app)/(tabs)/settings' },
 ] as const;
 
-interface FloatingTabBarProps {
-  active: string;
-  onChange: (k: string) => void;
-}
+export function FloatingTabBar() {
+  const router = useRouter();
+  const pathname = usePathname();
 
-export function FloatingTabBar({ active, onChange }: FloatingTabBarProps) {
+  // Determine which tab is currently active based on the route
+  const activeKey = TABS.find((t) => pathname.includes(t.key))?.key || 'dashboard';
+
   return (
     <View style={styles.wrap} pointerEvents="box-none">
       <View style={styles.bar}>
         {TABS.map((t) => {
-          const on = active === t.key;
+          const on = activeKey === t.key;
           return (
             <Pressable
               key={t.key}
-              onPress={() => onChange(t.key)}
+              onPress={() => router.replace(t.route)}
               style={[styles.tab, on && styles.tabOn]}
             >
               <Ionicons
@@ -56,7 +58,7 @@ const styles = StyleSheet.create({
     maxWidth: 520,
     height: 72,
     borderRadius: RADIUS.full,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
@@ -66,6 +68,8 @@ const styles = StyleSheet.create({
     shadowRadius: 28,
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
+    borderWidth: 1,
+    borderColor: COLORS.line,
   },
   tab: {
     flex: 1,
@@ -73,7 +77,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.xxl,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 4,
   },
   tabOn: { backgroundColor: COLORS.accentSoft },
   label: { fontSize: 11, fontWeight: '500', color: COLORS.t3 },

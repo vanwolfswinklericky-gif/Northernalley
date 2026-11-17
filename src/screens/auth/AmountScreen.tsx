@@ -25,7 +25,7 @@ interface AmountScreenProps {
 
 const FREE_PLAN_MAX_AMOUNT = 1000;
 const PAID_PLAN_MAX_AMOUNT = 100000;
-const MIN_DAILY_AMOUNT = 20; // €20 minimum for daily to cover gas fees
+const MIN_DAILY_AMOUNT = 20;
 
 const fmtEUR = (n: number) => `€${n.toFixed(2)}`;
 
@@ -40,7 +40,6 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
   const isFree = plan === 'free';
   const isPremium = plan === 'premium';
   const effectiveMax = isFree ? FREE_PLAN_MAX_AMOUNT : PAID_PLAN_MAX_AMOUNT;
-  const effectiveMin = frequency === 'daily' ? MIN_DAILY_AMOUNT : 1;
 
   const [isCustom, setIsCustom] = useState(false);
   const [customValue, setCustomValue] = useState('');
@@ -123,7 +122,6 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
               </Text>
             </Pressable>
 
-            {/* Daily DCA — Premium only */}
             <Pressable
               style={[
                 styles.freqBtn,
@@ -171,7 +169,7 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
               onPress={() => setIsCustom(true)}
               style={[styles.customCard, isCustom && styles.customCardSelected]}
             >
-              <Text style={styles.customTitle}>Custom</Text>
+              <Text style={[styles.customTitle, isCustom && { color: COLORS.accent }]}>Custom</Text>
               <Text style={styles.customSubtitle}>Set your own</Text>
             </Pressable>
           </View>
@@ -217,7 +215,7 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
             <Text style={styles.noteText}>
               {amount && amount > 0 ? (
                 <>
-                  That's{' '}
+                  That is{' '}
                   <Text style={styles.noteStrong}>
                     {fmtEUR(frequency === 'monthly'
                       ? yearly
@@ -239,6 +237,7 @@ export function AmountScreen({ onBack, onContinue }: AmountScreenProps) {
               label="Continue"
               disabled={!canContinue}
               onPress={onContinue}
+              variant="accent"
             />
           </View>
         </ScrollView>
@@ -262,9 +261,9 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.full,
   },
   freqBtnActive: { backgroundColor: COLORS.accent },
-  freqBtnDisabled: { opacity: 0.5 },
+  freqBtnDisabled: { opacity: 0.4 },
   freqText: { fontSize: 14, fontWeight: '600', color: COLORS.t2 },
-  freqTextActive: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
+  freqTextActive: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   freqTextDisabled: { fontSize: 14, fontWeight: '600', color: COLORS.t3 },
   grid: {
     flexDirection: 'row',
@@ -284,50 +283,64 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   customCardSelected: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.accentSoft,
     borderColor: COLORS.accent,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    elevation: 2,
   },
   customTitle: {
     fontSize: 26,
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: -0.78,
     color: COLORS.t1,
   },
-  customSubtitle: { fontSize: 12, color: COLORS.t2 },
+  customSubtitle: { fontSize: 13, fontWeight: '500', color: COLORS.t2 },
   inputWrapper: { marginTop: SPACING.s4 },
   inputLabel: {
-    fontSize: 13,
-    color: COLORS.t2,
-    fontWeight: '500',
+    fontSize: 14,
+    color: COLORS.t1,
+    fontWeight: '600',
     marginBottom: SPACING.s2,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 2,
+    borderBottomWidth: 3,
     borderBottomColor: COLORS.accent,
     paddingBottom: SPACING.s2,
   },
   currencySymbol: {
-    fontSize: 24,
-    fontWeight: '600',
+    fontSize: 28,
+    fontWeight: '700',
     color: COLORS.t1,
     marginRight: 8,
   },
-  input: { flex: 1, fontSize: 24, fontWeight: '600', color: COLORS.t1 },
+  input: { 
+    flex: 1, 
+    fontSize: 28, 
+    fontWeight: '700', 
+    color: COLORS.t1 
+  },
   limitWarning: {
     fontSize: 12,
+    fontWeight: '500',
     color: COLORS.danger,
     marginTop: SPACING.s2,
   },
-  note: { marginTop: SPACING.s5, alignItems: 'center', minHeight: 20 },
-  noteText: { fontSize: 14, color: COLORS.t2, textAlign: 'center' },
-  noteStrong: { color: COLORS.t1, fontWeight: '600' },
+  note: { 
+    marginTop: SPACING.s5, 
+    alignItems: 'center', 
+    minHeight: 20,
+    paddingHorizontal: 20,
+  },
+  noteText: { 
+    fontSize: 14, 
+    color: COLORS.t2, 
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  noteStrong: { 
+    color: COLORS.t1, 
+    fontWeight: '700' 
+  },
   buttonContainer: {
     marginTop: 'auto',
     paddingTop: SPACING.s5,

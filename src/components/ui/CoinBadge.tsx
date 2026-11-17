@@ -1,12 +1,52 @@
 // src/components/ui/CoinBadge.tsx
 
-import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import { COLORS } from '@/constants/theme';
+import { useState } from 'react';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
-const TINT: Record<string, number> = {
-  BTC: 60, ETH: 270, SOL: 300, BNB: 85, ADA: 250,
-  XRP: 230, DOT: 340, AVAX: 25, LINK: 255, JUP: 160,
-  RAY: 200, MIN: 180,
+// Map symbols to their TrustWallet contract addresses on Ethereum
+// For production, you'd want to map these dynamically based on the chain
+const TOKEN_ADDRESSES: Record<string, string> = {
+  BTC: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599', // WBTC (Wrapped Bitcoin) since BTC isn't an ERC20
+  ETH: '0x2170Ed0880ac9A755fd29B2688956BD959F933F8', // Binance-Peg Ethereum (or use native logo)
+  USDC: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+  USDT: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+  SOL: '0xd31a59c85ae9d8edefec411d448f90841571b89c', // Wrapped SOL
+  BNB: '0xB8c77482e45F1F44dE1745F52C74426C631bDD52',
+  XRP: '0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE',
+  ADA: '0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47',
+  AVAX: '0x1CE0c2827e2eF14D5C4f29a091d735A204794041',
+  LINK: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+  DOT: '0x7083609fCE4d1d8Dc0C979AAb8c869Ea2C873402',
+  MATIC: '0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0',
+  DOGE: '0xba2ae424d960c26247dd6c32edc70b295c744c43',
+  SHIB: '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE',
+  LTC: '0x4338665CBB7B2485A8855A139b75D5e34AB0DB94',
+  UNI: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',
+  ATOM: '0x0eb3a705fc54725037cc9e008bdede697f62f335',
+  XLM: '0x43f5e21db1a9a52bc40170dcd0a3c5e3c5f8f4c6',
+  NEAR: '0x85f17cf997934a597031b2e18a9ab6ebd4b9f6a4',
+  APT: '0x1b9743f556d65e757c4c650b4555baf354cb8bd3',
+  ARB: '0xb50721bcf8d664c1bf3b8f8f805f6c7e5e5a6e6c',
+  OP: '0x4200000000000000000000000000000000000042',
+  HYPE: '0x', // Not a standard ERC20, use a generic fallback
+};
+
+// These are native coins that don't have a contract address on Ethereum, 
+// but TrustWallet hosts their logos in the 'info' folder
+const NATIVE_LOGOS: Record<string, string> = {
+  BTC: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/bitcoin/info/logo.png',
+  ETH: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png',
+  BNB: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/info/logo.png',
+  SOL: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/info/logo.png',
+  XRP: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ripple/info/logo.png',
+  ADA: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/cardano/info/logo.png',
+  DOT: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/polkadot/info/logo.png',
+  AVAX: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/avalanchec/info/logo.png',
+  LINK: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x514910771AF9Ca656af840dff83E8264EcF986CA/logo.png',
+  MATIC: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/polygon/info/logo.png',
+  DOGE: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/doge/info/logo.png',
+  LTC: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/litecoin/info/logo.png',
 };
 
 interface CoinBadgeProps {
@@ -16,10 +56,32 @@ interface CoinBadgeProps {
 }
 
 export function CoinBadge({ symbol, size = 40, style }: CoinBadgeProps) {
-  const hue = TINT[symbol] ?? 220;
-  const bg = `hsl(${hue}, 30%, 94%)`;
-  const fg = `hsl(${hue}, 30%, 38%)`;
+  const [imgError, setImgError] = useState(false);
+  const upperSymbol = symbol.toUpperCase();
+  
+  // 1. Try to find a native logo first (BTC, ETH, etc.)
+  let logoUrl = NATIVE_LOGOS[upperSymbol];
 
+  // 2. If not a native coin, build the TrustWallet URL using the contract address
+  if (!logoUrl && TOKEN_ADDRESSES[upperSymbol]) {
+    logoUrl = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${TOKEN_ADDRESSES[upperSymbol]}/logo.png`;
+  }
+
+  // 3. If we have a URL and no error, render the real logo
+  if (logoUrl && !imgError) {
+    return (
+      <Image
+        source={{ uri: logoUrl }}
+        style={[
+          { width: size, height: size, borderRadius: size / 2 },
+          style,
+        ]}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  // 4. Fallback: Render the colored text badge (Your original code)
   return (
     <View
       style={[
@@ -28,38 +90,14 @@ export function CoinBadge({ symbol, size = 40, style }: CoinBadgeProps) {
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: bg,
+          backgroundColor: COLORS.accentSoft,
         },
         style,
       ]}
     >
-      {symbol === 'ETH' ? (
-        <Svg width={size * 0.52} height={size * 0.52} viewBox="0 0 24 24">
-          <Path
-            fill="#627EEA"
-            d="M11.944 17.97L4.58 13.62 11.943 24l7.37-10.38-7.372 4.35h.003zM12.056 0L4.69 12.223l7.365 4.354 7.365-4.35L12.056 0z"
-          />
-        </Svg>
-      ) : symbol === 'USDC' ? (
-        <Svg width={size} height={size} viewBox="0 0 2000 2000">
-          <Path
-            d="M1000 2000c554.17 0 1000-445.83 1000-1000S1554.17 0 1000 0 0 445.83 0 1000s445.83 1000 1000 1000z"
-            fill="#2775ca"
-          />
-          <Path
-            d="M1275 1158.33c0-145.83-87.5-195.83-262.5-216.66-125-16.67-150-50-150-108.34s41.67-95.83 125-95.83c75 0 116.67 25 137.5 87.5 4.17 12.5 16.67 20.83 29.17 20.83h66.66c16.67 0 29.17-12.5 29.17-29.16v-4.17c-16.67-91.67-91.67-162.5-187.5-170.83v-100c0-16.67-12.5-29.17-33.33-33.34h-62.5c-16.67 0-29.17 12.5-33.34 33.34v95.83c-125 16.67-204.16 100-204.16 204.17 0 137.5 83.33 191.66 258.33 212.5 116.67 20.83 154.17 45.83 154.17 112.5s-58.34 112.5-137.5 112.5c-108.34 0-145.84-45.84-158.34-108.34-4.16-16.66-16.66-25-29.16-25h-70.84c-16.66 0-29.16 12.5-29.16 29.17v4.17c16.66 104.16 83.33 179.16 220.83 200v100c0 16.66 12.5 29.16 33.33 33.33h62.5c16.67 0 29.17-12.5 33.34-33.33v-100c125-20.84 208.33-108.34 208.33-220.84z"
-            fill="#fff"
-          />
-          <Path
-            d="M787.5 1595.83c-325-116.66-491.67-479.16-370.83-800 62.5-175 200-308.33 370.83-370.83 16.67-8.33 25-20.83 25-41.67V325c0-16.67-8.33-29.17-25-33.33-4.17 0-12.5 0-16.67 4.16-395.83 125-612.5 545.84-487.5 941.67 75 233.33 254.17 412.5 487.5 487.5 16.67 4.17 33.34 0 37.5-16.67 4.17-4.16 4.17-8.33 4.17-16.66v-58.34c0-12.5-12.5-29.16-25-37.5zM1229.17 295.83c-16.67-8.33-33.34 0-37.5 16.67-4.17 4.17-4.17 8.33-4.17 16.67v58.33c0 16.67 12.5 33.33 25 41.67 325 116.66 491.67 479.16 370.83 800-62.5 175-200 308.33-370.83 370.83-16.67 8.33-25 20.83-25 41.67V1700c0 16.67 8.33 29.17 25 33.33 4.17 0 12.5 0 16.67-4.16 395.83-125 612.5-545.84 487.5-941.67-75-237.5-258.34-416.67-487.5-491.67z"
-            fill="#fff"
-          />
-        </Svg>
-      ) : (
-        <Text style={{ color: fg, fontSize: size * 0.3, fontWeight: '700', letterSpacing: -0.5 }}>
-          {symbol.slice(0, 3)}
-        </Text>
-      )}
+      <Text style={{ color: COLORS.accentText, fontSize: size * 0.35, fontWeight: '700', letterSpacing: -0.5 }}>
+        {upperSymbol.slice(0, 3)}
+      </Text>
     </View>
   );
 }

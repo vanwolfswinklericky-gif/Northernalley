@@ -1,7 +1,8 @@
 ﻿// src/components/SplashOverlay.tsx
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, Image, StyleSheet, View, useWindowDimensions } from 'react-native';
+import splashLogo from '../../assets/images/splash-logo.png';
 
 interface SplashOverlayProps {
   onFinish: () => void;
@@ -12,9 +13,9 @@ export function SplashOverlay({ onFinish, duration = 2500 }: SplashOverlayProps)
   const { width, height } = useWindowDimensions();
   const logoSize = Math.min(width * 0.6, 240);
 
-  const opacity = useRef(new Animated.Value(1)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0.92)).current;
+  const [opacity] = useState(() => new Animated.Value(1));
+  const [logoOpacity] = useState(() => new Animated.Value(0));
+  const [logoScale] = useState(() => new Animated.Value(0.92));
 
   useEffect(() => {
     Animated.parallel([
@@ -61,7 +62,7 @@ export function SplashOverlay({ onFinish, duration = 2500 }: SplashOverlayProps)
           }}
         >
           <Image
-            source={require('../../assets/images/splash-logo.png')}
+            source={splashLogo}
             style={{ width: logoSize, height: logoSize }}
             resizeMode="contain"
           />

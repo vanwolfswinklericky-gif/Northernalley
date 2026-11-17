@@ -3,7 +3,7 @@
 import { COLORS } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface ListRowProps {
   icon?: keyof typeof Ionicons.glyphMap;
@@ -20,6 +20,7 @@ interface ListRowProps {
   onToggle?: (v: boolean) => void;
   danger?: boolean;
   last?: boolean;
+  loading?: boolean;
 }
 
 export function ListRow({
@@ -37,6 +38,7 @@ export function ListRow({
   onToggle,
   danger,
   last,
+  loading,
 }: ListRowProps) {
   const inner = (
     <View style={[styles.row, !last && styles.divider]}>
@@ -80,15 +82,22 @@ export function ListRow({
         </View>
       )}
       {toggle !== undefined && (
-        <Pressable
-          onPress={(e) => {
-            e.stopPropagation?.();
-            onToggle?.(!toggle);
-          }}
-          style={[styles.switch, toggle && styles.switchOn]}
-        >
-          <View style={[styles.knob, toggle && { transform: [{ translateX: 18 }] }]} />
-        </Pressable>
+        loading ? (
+          <ActivityIndicator color={COLORS.accent} />
+        ) : (
+          <Pressable
+            accessibilityRole="switch"
+            accessibilityState={{ checked: toggle, disabled: !onToggle }}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onToggle?.(!toggle);
+            }}
+            style={[styles.switch, toggle && styles.switchOn]}
+            disabled={!onToggle}
+          >
+            <View style={[styles.knob, toggle && { transform: [{ translateX: 18 }] }]} />
+          </Pressable>
+        )
       )}
       {chevron && <Ionicons name="chevron-forward" size={18} color={COLORS.t3} />}
     </View>

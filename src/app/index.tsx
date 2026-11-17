@@ -13,13 +13,13 @@ export default function IndexRoute() {
   if (!isReady || (loggedIn && !walletReady && !walletNeedsRecovery)) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator color="#fff" />
+        <ActivityIndicator color={COLORS.accent} />
       </View>
     );
   }
 
   if (!loggedIn) {
-    return <Redirect href="/(auth)/login" />;
+    return <Redirect href="/(auth)" />;
   }
 
   if (walletNeedsRecovery) {

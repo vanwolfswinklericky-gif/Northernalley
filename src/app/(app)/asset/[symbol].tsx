@@ -8,7 +8,7 @@ export default function AssetDetailRoute() {
     <AssetDetailScreen
       symbol={symbol ?? 'BTC'}
       onBack={() => router.back()}
-      onBuyMore={() => router.push('/(auth)/amount')}
+      onBuyMore={() => router.push('/(app)/amount')}
     />
   );
 }

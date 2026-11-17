@@ -24,7 +24,7 @@ export function useCurrency() {
         style: 'currency',
         currency: currency, // e.g., 'USD', 'NGN', 'JPY'
       }).format(converted);
-    } catch (error) {
+    } catch {
       // Fallback just in case an invalid currency string is passed
       return `${currency} ${converted.toFixed(2)}`;
     }

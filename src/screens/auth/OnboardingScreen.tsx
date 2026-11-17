@@ -41,7 +41,7 @@ export function OnboardingScreen({ onStart, onSignIn }: OnboardingScreenProps) {
             Build a crypto portfolio, one month at a time.
           </Text>
           <Text style={styles.subline}>
-            Pick a basket, set an amount, and we'll invest for you automatically.
+            Pick a basket, set an amount, and we&apos;ll invest for you automatically.
           </Text>
         </View>
       </View>

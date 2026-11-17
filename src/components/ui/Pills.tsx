@@ -44,11 +44,16 @@ export function Pills({ options, value, onChange, seg }: PillsProps) {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 8 },
   pill: {
-    height: 40, paddingHorizontal: 18, borderRadius: RADIUS.full,
+    height: 40, 
+    paddingHorizontal: 18, 
+    borderRadius: RADIUS.full,
     backgroundColor: COLORS.soft,
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center', 
+    justifyContent: 'center',
   },
-  pillOn: { backgroundColor: COLORS.t1 },
+  pillOn: { 
+    backgroundColor: COLORS.accent // Changed from COLORS.t1 to purple
+  },
   text: { fontSize: 14, fontWeight: '500', color: COLORS.t2 },
   textOn: { color: '#fff' },
   segWrap: {
@@ -58,10 +63,15 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   segBtn: {
-    flex: 1, height: 34, borderRadius: RADIUS.full,
-    alignItems: 'center', justifyContent: 'center',
+    flex: 1, 
+    height: 34, 
+    borderRadius: RADIUS.full,
+    alignItems: 'center', 
+    justifyContent: 'center',
   },
-  segBtnOn: { backgroundColor: '#fff' },
+  segBtnOn: { 
+    backgroundColor: COLORS.accent // Changed from #fff to purple
+  },
   segText: { fontSize: 13, fontWeight: '500', color: COLORS.t2 },
-  segTextOn: { color: COLORS.t1 },
+  segTextOn: { color: '#fff' }, // Changed from t1 to white so it's readable on purple
 });

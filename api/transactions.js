@@ -21,7 +21,9 @@ export default async function handler(req, res) {
       WHERE u.privy_user_id = $1
     `;
 
-    if (type && type !== 'all') {
+    if (type === 'purchases') {
+      query += ` AND t.type IN ('dca_buy', 'instant_buy')`;
+    } else if (type && type !== 'all') {
       params.push(type);
       query += ` AND t.type = $${params.length}`;
     }

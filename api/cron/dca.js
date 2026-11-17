@@ -2,7 +2,7 @@
 
 import Stripe from 'stripe';
 import { parseUnits } from 'viem';
-import { normalizeEthUsdcWeights } from '../_lib/basket-weights.js';
+import { normalizeBasketWeights } from '../_lib/basket-weights.js';
 import pool from '../_lib/db.js';
 import { executeSwapBatch } from '../_lib/execute-swap.js';
 import { calculateRebalanceSwaps } from '../_lib/rebalance.js';
@@ -93,7 +93,7 @@ export default async function handler(req, res) {
     try {
       usdc = await resolveToken('USDC');
     } catch (error) {
-      log('error', 'Failed to resolve USDC - aborting');
+      log('error', 'Failed to resolve USDC - aborting', { error: error.message });
       return res.status(500).json({ ok: false, error: 'Token resolution failed' });
     }
 
@@ -120,55 +120,29 @@ export default async function handler(req, res) {
       }
 
       try {
-        const { rows: basketRows } = await pool.query(`SELECT coins FROM baskets WHERE id = $1`, [plan.basket_id]);
+        const { rows: basketRows } = await pool.query(`SELECT slug, coins FROM baskets WHERE id = $1`, [plan.basket_id]);
         if (basketRows.length === 0) { skipped++; continue; }
 
         let basketAssets;
         try {
-          const rawCoins = basketRows[0].coins;
-          basketAssets = typeof rawCoins === 'string' ? JSON.parse(rawCoins) : rawCoins;
-          basketAssets = normalizeEthUsdcWeights(basketAssets);
-        } catch (e) { skipped++; continue; }
+          basketAssets = normalizeBasketWeights(
+            basketRows[0].slug,
+            basketRows[0].coins,
+          );
+        } catch (error) {
+          log('warn', 'Invalid basket configuration; skipping DCA before charge', {
+            userId: plan.user_id,
+            error: error.message,
+          });
+          skipped++;
+          continue;
+        }
 
         const grossAmount = Number(plan.amount_usd);
         const depositFee = grossAmount * DEPOSIT_FEE_RATE;
         const totalToCharge = grossAmount + depositFee; // Charge investment + fee
 
-        // --- 1. CHARGE THE USER'S CARD (STRIPE) ---
-        if (plan.stripe_customer_id) {
-          try {
-            await stripe.paymentIntents.create({
-              amount: Math.round(totalToCharge * 100), // in cents
-              currency: 'eur',
-              customer: plan.stripe_customer_id,
-              description: `DCA Execution - ${plan.basket_id}`,
-              confirm: true,
-              off_session: true,
-              metadata: { userId: plan.user_id, dcaPlanId: plan.dca_plan_id },
-            });
-            log('info', 'Stripe charge successful', { userId: plan.user_id, amount: totalToCharge });
-          } catch (stripeError) {
-            log('error', 'Stripe charge failed - skipping user', { userId: plan.user_id, error: stripeError.message });
-            
-            // Mark past_due and notify
-            await pool.query(`UPDATE subscriptions SET status = 'past_due' WHERE user_id = $1`, [plan.user_id]);
-            if (plan.push_token) {
-              await fetch('https://exp.host/--/api/v2/push/send', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  to: plan.push_token,
-                  title: 'Payment Failed',
-                  body: 'Your DCA failed due to insufficient funds. Please update your card.',
-                }),
-              }).catch(() => {});
-            }
-            skipped++;
-            continue; // Skip to next user
-          }
-        }
-
-        // --- 2. BUILD DCA SWAPS ---
+        // --- 1. BUILD DCA SWAPS ---
         const netAmountToInvest = grossAmount - depositFee;
         const swaps = [];
         for (const asset of basketAssets) {
@@ -186,6 +160,41 @@ export default async function handler(req, res) {
         }
 
         if (swaps.length === 0) { skipped++; continue; }
+
+        // Prepare every swap before charging so unsupported assets or quote errors
+        // do not result in a charge without a corresponding purchase attempt.
+        // --- 2. CHARGE THE USER'S CARD (STRIPE) ---
+        if (plan.stripe_customer_id) {
+          try {
+            await stripe.paymentIntents.create({
+              amount: Math.round(totalToCharge * 100), // in cents
+              currency: 'eur',
+              customer: plan.stripe_customer_id,
+              description: `DCA Execution - ${plan.basket_id}`,
+              confirm: true,
+              off_session: true,
+              metadata: { userId: plan.user_id, dcaPlanId: plan.dca_plan_id },
+            });
+            log('info', 'Stripe charge successful', { userId: plan.user_id, amount: totalToCharge });
+          } catch (stripeError) {
+            log('error', 'Stripe charge failed - skipping user', { userId: plan.user_id, error: stripeError.message });
+
+            await pool.query(`UPDATE subscriptions SET status = 'past_due' WHERE user_id = $1`, [plan.user_id]);
+            if (plan.push_token) {
+              await fetch('https://exp.host/--/api/v2/push/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  to: plan.push_token,
+                  title: 'Payment Failed',
+                  body: 'Your DCA failed due to insufficient funds. Please update your card.',
+                }),
+              }).catch(() => {});
+            }
+            skipped++;
+            continue;
+          }
+        }
 
         // --- 3. EXECUTE DCA ---
         const { executed, failed } = await executeSwapBatch(swaps, {
@@ -238,7 +247,12 @@ export default async function handler(req, res) {
 
         // --- 6. PUSH NOTIFICATION ---
         if (plan.push_token && executed.length > 0) {
-          sendPushNotification(plan, netAmountToInvest, executed, failed, rebalanceResult).catch(() => {});
+          sendPushNotification(plan, executed, failed, rebalanceResult).catch((error) => {
+            log('warn', 'Purchase notification failed', {
+              userId: plan.user_id,
+              error: error.message,
+            });
+          });
         }
         processed++;
       } catch (planError) {
@@ -256,12 +270,24 @@ export default async function handler(req, res) {
   }
 }
 
-async function sendPushNotification(plan, netAmount, executed, failed, rebalance) {
-  let body = failed.length === 0 ? `Your €${netAmount.toFixed(2)} ETF investment was successful.` : `Investment partially failed.`;
-  if (rebalance && rebalance.executed > 0) body += ` Portfolio automatically rebalanced.`;
-  await fetch('https://exp.host/--/api/v2/push/send', {
+async function sendPushNotification(plan, executed, failed, rebalance) {
+  const assets = [...new Set(executed.map((purchase) => purchase.symbol))].join(', ');
+  let body = failed.length === 0
+    ? `Your recurring crypto purchase completed: ${assets}.`
+    : `Your recurring crypto purchase was partially completed. Purchased: ${assets}.`;
+  if (rebalance && rebalance.executed > 0) {
+    body += ' Some portfolio positions were rebalanced.';
+  }
+  const response = await fetch('https://exp.host/--/api/v2/push/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to: plan.push_token, sound: 'default', title: 'ETF Investment Executed', body, data: { screen: 'activity' } }),
+    body: JSON.stringify({
+      to: plan.push_token,
+      sound: 'default',
+      title: failed.length === 0 ? 'Crypto purchase completed' : 'Crypto purchase partially completed',
+      body,
+      data: { screen: 'activity' },
+    }),
   });
+  if (!response.ok) throw new Error(`Push provider returned HTTP ${response.status}.`);
 }

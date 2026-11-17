@@ -13,13 +13,9 @@ import { useTransactions, type Transaction } from '@/hooks/useTransactions';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-interface ActivityScreenProps {
-  onTab: (key: string) => void;
-}
-
 const FILTER_MAP: Record<string, string | undefined> = {
   All: undefined,
-  Buys: 'dca_buy',
+  Purchases: 'purchases',
   Fees: 'fee',
   Withdrawals: 'withdrawal',
 };
@@ -37,11 +33,11 @@ function dateLabel(iso: string) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export function ActivityScreen({ onTab }: ActivityScreenProps) {
+export function ActivityScreen() {
   const [filter, setFilter] = useState('All');
   const { data: transactions, isLoading } = useTransactions(FILTER_MAP[filter]);
 
-  const tabs = <FloatingTabBar active="activity" onChange={onTab} />;
+  const tabs = <FloatingTabBar />;
 
   const grouped = (transactions ?? []).reduce<Record<string, Transaction[]>>((acc, t) => {
     const month = monthLabel(t.created_at);
@@ -52,7 +48,7 @@ export function ActivityScreen({ onTab }: ActivityScreenProps) {
   return (
     <Screen title="Activity" tabs={tabs}>
       <Pills
-        options={['All', 'Buys', 'Fees', 'Withdrawals']}
+        options={['All', 'Purchases', 'Fees', 'Withdrawals']}
         value={filter}
         onChange={setFilter}
       />
@@ -66,7 +62,7 @@ export function ActivityScreen({ onTab }: ActivityScreenProps) {
           <EmptyState
             icon="receipt-outline"
             title="No activity yet"
-            message="Your buys, fees, and withdrawals will show up here."
+            message="There are no transactions in this category yet."
           />
         </Container>
       ) : (
@@ -81,16 +77,24 @@ export function ActivityScreen({ onTab }: ActivityScreenProps) {
                   iconColor={COLORS.up}
                   title={
                     t.type === 'dca_buy'
-                      ? 'Monthly buy'
-                      : t.type === 'fee'
-                        ? 'Service fee'
-                        : t.type === 'subscription'
-                          ? 'Subscription'
-                          : 'Withdrawal'
+                      ? 'Recurring crypto purchase'
+                      : t.type === 'instant_buy'
+                        ? 'Crypto purchase'
+                        : t.type === 'fee'
+                          ? 'Service fee'
+                          : t.type === 'subscription'
+                            ? 'Subscription'
+                            : 'Withdrawal'
                   }
                   subtitle={`${dateLabel(t.created_at)}${t.status ? ` · ${t.status}` : ''}`}
                   value={(t.type === 'fee' || t.type === 'withdrawal' ? '−' : '') + fmtUSD(t.amount_usd)}
-                  valueSub={t.type.replace('_', ' ')}
+                  valueSub={
+                    t.type === 'dca_buy'
+                      ? 'recurring purchase'
+                      : t.type === 'instant_buy'
+                        ? 'one-time purchase'
+                        : t.type.replace('_', ' ')
+                  }
                   last={i === items.length - 1}
                 />
               ))}

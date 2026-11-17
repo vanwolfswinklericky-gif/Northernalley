@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/Button';
 import { Container } from '@/components/ui/Container';
 import { Screen } from '@/components/ui/Screen';
-import { COLORS, SPACING } from '@/constants/theme';
+import { COLORS, RADIUS, SPACING } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import {
   useEmbeddedEthereumWallet,
@@ -18,13 +18,9 @@ interface ProvisionSignerScreenProps {
   onSuccess: () => void;
 }
 
-export function ProvisionSignerScreen({
-  onBack,
-  onSuccess,
-}: ProvisionSignerScreenProps) {
+export function ProvisionSignerScreen({ onBack, onSuccess }: ProvisionSignerScreenProps) {
   const { user, isReady } = usePrivy();
   const { wallets } = useEmbeddedEthereumWallet();
-  
   const { addSigners } = useSigners();
   
   const [loading, setLoading] = useState(false);
@@ -97,12 +93,12 @@ export function ProvisionSignerScreen({
     <Screen
       onBack={onBack}
       progress={4 / 7}
-      title="Enable automatic investing"
-      subtitle="Grant Northernalley permission to invest for you on schedule."
+      title="Enable Auto-Investing"
+      subtitle="Authorize NorthernAlley to execute your DCA schedule."
       footer={
         <View style={styles.footer}>
           <Button
-            label={isAlreadyDelegated ? 'Continue' : 'Enable Automatic Investing'}
+            label={isAlreadyDelegated ? 'Continue to Next Step' : 'Authorize Auto-Investing'}
             variant="accent"
             loading={loading}
             onPress={handleDelegate}
@@ -110,9 +106,7 @@ export function ProvisionSignerScreen({
           {isAlreadyDelegated && (
             <View style={styles.successRow}>
               <Ionicons name="checkmark-circle" size={16} color={COLORS.up} />
-              <Text style={styles.successText}>
-                Your wallet is already delegated
-              </Text>
+              <Text style={styles.successText}>Wallet already authorized</Text>
             </View>
           )}
         </View>
@@ -120,42 +114,52 @@ export function ProvisionSignerScreen({
     >
       <Container style={styles.card}>
         <View style={styles.iconWrap}>
-          <Ionicons name="shield-checkmark-outline" size={32} color={COLORS.accent} />
+          <Ionicons name="shield-checkmark" size={36} color={COLORS.accent} />
         </View>
-        <Text style={styles.heading}>What you're approving</Text>
+        <Text style={styles.heading}>Permission Required</Text>
+        <Text style={styles.subheading}>
+          To automate your investments, we need a secure, limited permission to execute swaps on your behalf.
+        </Text>
+
+        <View style={styles.divider} />
+
         <View style={styles.bulletList}>
           <View style={styles.bullet}>
-            <Ionicons name="checkmark-circle" size={18} color={COLORS.accent} />
+            <View style={styles.bulletIcon}>
+              <Ionicons name="checkmark" size={14} color="#fff" />
+            </View>
             <Text style={styles.bulletText}>
-              Northernalley can execute your monthly DCA purchases automatically
+              Execute scheduled DCA purchases automatically
             </Text>
           </View>
           <View style={styles.bullet}>
-            <Ionicons name="checkmark-circle" size={18} color={COLORS.accent} />
+            <View style={styles.bulletIcon}>
+              <Ionicons name="checkmark" size={14} color="#fff" />
+            </View>
             <Text style={styles.bulletText}>
-              Only swap transactions are allowed — no withdrawals to other addresses
+              Restricted to swaps only — <Text style={{fontWeight: '700'}}>no withdrawals allowed</Text>
             </Text>
           </View>
           <View style={styles.bullet}>
-            <Ionicons name="checkmark-circle" size={18} color={COLORS.accent} />
+            <View style={styles.bulletIcon}>
+              <Ionicons name="checkmark" size={14} color="#fff" />
+            </View>
             <Text style={styles.bulletText}>
-              You keep full control — revoke access anytime from Settings
+              You retain full ownership of your funds and keys
             </Text>
           </View>
         </View>
       </Container>
 
       {error && (
-        <Container style={styles.errorCard}>
-          <View style={styles.errorRow}>
-            <Ionicons name="alert-circle-outline" size={20} color={COLORS.danger} />
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        </Container>
+        <View style={styles.errorBox}>
+          <Ionicons name="alert-circle" size={20} color={COLORS.danger} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
       )}
 
       <Text style={styles.note}>
-        Your funds always stay in your wallet. Northernalley never holds your keys.
+        Your funds always stay in your non-custodial wallet. NorthernAlley never holds your keys. You can revoke this permission anytime from Settings.
       </Text>
     </Screen>
   );
@@ -163,7 +167,7 @@ export function ProvisionSignerScreen({
 
 const styles = StyleSheet.create({
   footer: {
-    paddingBottom: 40,
+    paddingBottom: 24,
     gap: 12,
   },
   loadingContainer: {
@@ -174,35 +178,64 @@ const styles = StyleSheet.create({
   loadingText: {
     color: COLORS.t2,
     marginTop: SPACING.s3,
+    fontWeight: '500',
   },
   card: {
-    marginBottom: 16,
-    alignItems: 'center',
+    marginBottom: 20,
+    padding: 24,
+    borderRadius: RADIUS.xl,
+    backgroundColor: COLORS.card,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
   },
   iconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: COLORS.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SPACING.s3,
+    alignSelf: 'center',
+    marginBottom: SPACING.s4,
   },
   heading: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: COLORS.t1,
-    marginBottom: SPACING.s3,
+    marginBottom: 8,
     textAlign: 'center',
   },
+  subheading: {
+    fontSize: 14,
+    color: COLORS.t2,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.line,
+    marginBottom: 24,
+  },
   bulletList: {
-    gap: 12,
+    gap: 16,
     width: '100%',
   },
   bullet: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
+    alignItems: 'center',
+    gap: 12,
+  },
+  bulletIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: COLORS.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bulletText: {
     flex: 1,
@@ -210,19 +243,21 @@ const styles = StyleSheet.create({
     color: COLORS.t1,
     lineHeight: 20,
   },
-  errorCard: {
-    marginBottom: 16,
-  },
-  errorRow: {
+  errorBox: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    padding: 16,
+    borderRadius: RADIUS.lg,
+    gap: 12,
+    marginBottom: 20,
   },
   errorText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.danger,
-    lineHeight: 20,
+    fontWeight: '500',
+    lineHeight: 18,
   },
   successRow: {
     flexDirection: 'row',
@@ -233,13 +268,14 @@ const styles = StyleSheet.create({
   successText: {
     fontSize: 13,
     color: COLORS.up,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   note: {
     fontSize: 12,
     color: COLORS.t3,
     textAlign: 'center',
-    paddingHorizontal: SPACING.s4,
     lineHeight: 18,
+    paddingHorizontal: 16,
+    marginBottom: 24,
   },
 });

@@ -6,7 +6,7 @@ import { TextInput } from '@/components/ui/TextInput';
 import { COLORS } from '@/constants/theme';
 import { usePlanStore } from '@/store/planStore';
 import { Ionicons } from '@expo/vector-icons';
-import { isNotCreated, useEmbeddedWallet, useLoginWithEmail } from '@privy-io/expo';
+import { useLoginWithEmail } from '@privy-io/expo';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -17,25 +17,11 @@ export function OtpScreen({ onBack }: { onBack: () => void }) {
   const { flow } = useLocalSearchParams<{ flow?: string }>();
 
   const email = usePlanStore((s) => s.email);
-  const wallet = useEmbeddedWallet();
-
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { loginWithCode } = useLoginWithEmail({
-    onLoginSuccess: async () => {
-      // Create embedded wallet after successful email OTP login
-      if (isNotCreated(wallet)) {
-        try {
-          await wallet.create({ recoveryMethod: 'privy' });
-        } catch (err) {
-          console.error('Wallet creation failed:', err);
-          // Non-blocking: user is still logged in even if wallet creation fails
-        }
-      }
-    },
-  });
+  const { loginWithCode } = useLoginWithEmail();
 
   const handleVerify = async () => {
     if (code.length < 6) return;

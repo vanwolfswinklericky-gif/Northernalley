@@ -9,8 +9,18 @@ const REFETCH_INTERVAL = 60_000;
 
 export function useBalances() {
   const { user } = usePrivy();
-  const { setPortfolio, setLoading, setError, holdings, totalValue, isLoading, lastFetched } =
-    usePortfolioStore();
+  const { 
+    setPortfolio, 
+    setLoading, 
+    setError, 
+    holdings, 
+    unsupportedAssets,
+    totalValue, 
+    totalInvested, // NEW
+    portfolioHistory, // NEW
+    isLoading, 
+    error,
+  } = usePortfolioStore();
 
   useEffect(() => {
     if (!user?.id) return;
@@ -27,7 +37,10 @@ export function useBalances() {
         if (!cancelled) {
           setPortfolio({
             holdings: data.holdings ?? [],
+            unsupportedAssets: data.unsupportedAssets ?? [],
             totalValue: data.totalValue ?? 0,
+            totalInvested: data.totalInvested ?? 0, // NEW
+            portfolioHistory: data.portfolioHistory ?? [], // NEW
           });
         }
       } catch (err: any) {
@@ -47,5 +60,13 @@ export function useBalances() {
     };
   }, [user?.id, setPortfolio, setLoading, setError]);
 
-  return { holdings, totalValue, isLoading };
+  return { 
+    holdings, 
+    unsupportedAssets,
+    totalValue, 
+    totalInvested, // NEW
+    portfolioHistory, // NEW
+    isLoading,
+    error,
+  };
 }

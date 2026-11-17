@@ -26,7 +26,7 @@ export function SuccessScreen({ onGoToDashboard }: SuccessScreenProps) {
     <Screen footer={<Button label="Go to Dashboard" variant="accent" onPress={handleDone} />}>
       <View style={styles.hero}>
         <StatusCircle kind="ok" />
-        <Text style={styles.title}>You're all set</Text>
+        <Text style={styles.title}>You&apos;re all set</Text>
         <Text style={styles.sub}>
           Your subscription is active and your first investment is scheduled.
         </Text>

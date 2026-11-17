@@ -1,89 +1,70 @@
 // src/screens/app/DashboardScreen.tsx
 
-import { Button } from '@/components/ui/Button';
 import { CoinBadge } from '@/components/ui/CoinBadge';
 import { Container } from '@/components/ui/Container';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FloatingTabBar } from '@/components/ui/FloatingTabBar';
-import { LineChart, makeSeries } from '@/components/ui/LineChart';
-import { ListRow } from '@/components/ui/ListRow';
 import { Screen } from '@/components/ui/Screen';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { basketById, fmtPct, fmtUSD } from '@/constants/baskets';
 import { COLORS, TYPE } from '@/constants/theme';
 import { useBalances } from '@/hooks/useBalances';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePlanStore } from '@/store/planStore';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface DashboardScreenProps {
   onBuy: () => void;
   onChoosePlan: () => void;
   onWallet: () => void;
   onAsset: (symbol: string) => void;
-  onTab: (key: string) => void;
 }
 
-export function DashboardScreen({ onBuy, onChoosePlan, onWallet, onAsset, onTab }: DashboardScreenProps) {
-  const { holdings, totalValue, isLoading } = useBalances();
-  const { plan, status } = useSubscription(); // Added status
-  const { basketId, amount: dcaAmount } = usePlanStore();
+export function DashboardScreen({ onBuy, onChoosePlan, onWallet, onAsset }: DashboardScreenProps) {
+  const { holdings, totalValue, unsupportedAssets, isLoading } = useBalances();
+  const { plan, status } = useSubscription(); 
+  const { basketId, amount: dcaAmount, frequency } = usePlanStore();
   const activeBasket = basketById(basketId);
+  
+  const [hideBalance, setHideBalance] = useState(false);
 
   const hasActivePlan = plan && status === 'active';
+  const isEmpty = !isLoading && holdings.length === 0;
 
-  // Send users without an active subscription through plan selection.
   const handleBuyPress = () => {
-    if (hasActivePlan) {
-      onBuy(); // Go to baskets
-    } else {
-      onChoosePlan();
-    }
+    if (hasActivePlan) onBuy(); 
+    else onChoosePlan();
   };
 
-  // --- Simulated Profit/Loss ---
-  const totalInvested = totalValue * 0.85;
-  const totalProfit = totalValue - totalInvested;
-  const profitPct = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
-  const isPositive = totalProfit >= 0;
+  const tabs = <FloatingTabBar />;
 
-  // --- Best Performer ---
-  const bestPerformer = holdings.length > 0 
-    ? [...holdings].sort((a, b) => b.change24h - a.change24h)[0] 
-    : null;
-
-  // --- Next Buy Date ---
-  const nextBuyDate = new Date();
-  nextBuyDate.setMonth(nextBuyDate.getMonth() + 1, 1);
-  const nextBuyStr = nextBuyDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-  const tabs = <FloatingTabBar active="dashboard" onChange={onTab} />;
-
+  // --- Loading State ---
   if (isLoading && holdings.length === 0) {
     return (
       <Screen tabs={tabs}>
         <View style={styles.center}>
-          <ActivityIndicator color={COLORS.accent} />
+          <ActivityIndicator size="large" color={COLORS.accent} />
         </View>
       </Screen>
     );
   }
 
-  if (holdings.length === 0) {
+  // --- Empty State (No Wallet / No Holdings) ---
+  if (isEmpty) {
     return (
       <Screen tabs={tabs}>
         <View style={styles.head}>
           <View>
-            <Text style={styles.label}>Good morning</Text>
-            <Text style={styles.name}>Welcome to Northernalley</Text>
+            <Text style={styles.label}>Good afternoon</Text>
+            <Text style={styles.bigTitle}>Portfolio</Text>
           </View>
         </View>
         <Container>
           <EmptyState
             icon="sparkles-outline"
             title="No investments yet"
-            message={hasActivePlan ? "Your first DCA will execute soon." : "Choose a plan to start investing automatically."}
+            message={hasActivePlan ? "Your first DCA will execute soon. Sit tight!" : "Choose a plan to start investing automatically."}
             action={hasActivePlan ? undefined : "Choose a Plan"}
             onAction={hasActivePlan ? undefined : handleBuyPress}
           />
@@ -92,162 +73,240 @@ export function DashboardScreen({ onBuy, onChoosePlan, onWallet, onAsset, onTab 
     );
   }
 
+  // --- Live Dashboard ---
   return (
     <Screen tabs={tabs}>
       {/* --- Header --- */}
       <View style={styles.head}>
-        <View>
-          <Text style={styles.label}>Good morning</Text>
-          <Text style={styles.name}>Your Portfolio</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={styles.logoWrap}>
+            <Ionicons name="layers" size={20} color="#fff" />
+          </View>
+          <Text style={styles.logoText}>NorthernAlley</Text>
         </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <Pressable style={styles.iconBtn}>
-            <Ionicons name="notifications-outline" size={20} color={COLORS.accent} />
-          </Pressable>
-          <Pressable style={styles.iconBtn} onPress={onWallet}>
-            <Ionicons name="wallet-outline" size={20} color={COLORS.accent} />
-          </Pressable>
+        <View style={styles.iconBtn}>
+          <Ionicons name="notifications-outline" size={24} color={COLORS.t1} />
+          <View style={styles.notifDot} />
         </View>
       </View>
 
+      <Text style={styles.label}>Good afternoon</Text>
+      <Text style={styles.bigTitle}>Portfolio</Text>
+
+      {/* --- NEW: No Active Plan Banner --- */}
+      {!hasActivePlan && (
+        <Pressable style={styles.upgradeBanner} onPress={onChoosePlan}>
+          <View style={styles.upgradeIconWrap}>
+            <Ionicons name="rocket-outline" size={24} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.upgradeTitle}>Activate your DCA Plan</Text>
+            <Text style={styles.upgradeSub}>Choose a plan to start automating your investments.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={COLORS.accent} />
+        </Pressable>
+      )}
+
       {/* --- Total Value & Profit Card --- */}
-      <Container>
-        <Text style={styles.label}>Total value</Text>
-        <Text style={[TYPE.big, { color: COLORS.t1, marginTop: 6 }]}>
-          {fmtUSD(totalValue)}
+      <Container style={styles.valueCard}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={[TYPE.big, { color: COLORS.t1, fontSize: 36, letterSpacing: -1 }]}>
+            {hideBalance
+              ? '••••••'
+              : holdings.length > 0 && holdings.every((holding) => holding.usdValue == null)
+                ? 'Price unavailable'
+                : fmtUSD(totalValue)}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={hideBalance ? 'Show balance' : 'Hide balance'}
+            onPress={() => setHideBalance((hidden) => !hidden)}
+          >
+            <Ionicons name={hideBalance ? 'eye-off-outline' : 'eye-outline'} size={20} color={COLORS.t3} />
+          </Pressable>
+        </View>
+
+        <Text style={styles.valueNote}>
+          Current known value of tracked Base assets. Historical returns aren’t available yet.
+          {unsupportedAssets.length > 0
+            ? ` Not tracked on Base: ${unsupportedAssets.join(', ')}.`
+            : ''}
         </Text>
-
-        <View style={styles.chipRow}>
-          <View style={[styles.chip, isPositive ? styles.chipUp : styles.chipDown]}>
-            <Ionicons 
-              name={isPositive ? 'trending-up' : 'trending-down'} 
-              size={14} 
-              color={isPositive ? COLORS.up : COLORS.down} 
-            />
-            <Text style={[styles.chipText, { color: isPositive ? COLORS.up : COLORS.down }]}>
-              {isPositive ? '+' : ''}{fmtUSD(totalProfit)} ({fmtPct(profitPct)})
-            </Text>
-          </View>
-          <Text style={styles.chipNote}>Invested: {fmtUSD(totalInvested)}</Text>
-        </View>
-
-        <View style={{ marginHorizontal: -4, marginTop: 20 }}>
-          <LineChart data={makeSeries(5, 50, 0.005, 0.04)} height={90} />
-        </View>
-      </Container>
-
-      {/* --- Active Plan Card --- */}
-      <Container style={{ marginTop: 16 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <View>
-            <Text style={styles.label}>Active Plan</Text>
-            <Text style={styles.planName}>{activeBasket?.name || 'No Basket'}</Text>
-            <Text style={styles.planDetail}>
-              {plan ? `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan` : 'No Plan'} · ${dcaAmount || 0}/mo
-            </Text>
-          </View>
-          <View style={styles.nextBuyChip}>
-            <Ionicons name="calendar-outline" size={12} color={COLORS.accent} />
-            <Text style={styles.nextBuyText}>Next: {nextBuyStr}</Text>
-          </View>
-        </View>
       </Container>
 
       {/* --- Quick Actions --- */}
       <View style={styles.quickActions}>
-        <Pressable style={styles.actionBtn} onPress={handleBuyPress}>
-          <View style={styles.actionIconWrap}>
-            <Ionicons name="add" size={22} color={COLORS.accent} />
-          </View>
-          <Text style={styles.actionText}>Deposit</Text>
+        <Pressable style={[styles.actionBtn, styles.actionBtnPrimary]} onPress={handleBuyPress}>
+          <Ionicons name="add" size={20} color="#fff" />
+          <Text style={styles.actionTextPrimary}>Buy</Text>
         </Pressable>
         
-        <Pressable style={styles.actionBtn} onPress={onWallet}>
-          <View style={styles.actionIconWrap}>
-            <Ionicons name="arrow-up" size={22} color={COLORS.accent} />
-          </View>
-          <Text style={styles.actionText}>Withdraw</Text>
+        <Pressable
+          style={styles.actionBtnSecondary}
+          onPress={() => Alert.alert('Swap', 'Swaps are not available yet.')}
+        >
+          <Ionicons name="swap-horizontal" size={20} color={COLORS.t1} />
+          <Text style={styles.actionTextSecondary}>Swap</Text>
         </Pressable>
 
-        <Pressable style={styles.actionBtn} onPress={() => onTab('activity')}>
-          <View style={styles.actionIconWrap}>
-            <Ionicons name="time" size={22} color={COLORS.accent} />
-          </View>
-          <Text style={styles.actionText}>History</Text>
+        <Pressable style={styles.actionBtnSecondary} onPress={onWallet}>
+          <Ionicons name="arrow-down" size={20} color={COLORS.t1} />
+          <Text style={styles.actionTextSecondary}>Receive</Text>
         </Pressable>
       </View>
 
-      {/* --- Allocation Bar --- */}
-      <View style={{ marginTop: 24, marginBottom: 8, paddingHorizontal: 4 }}>
-        <Text style={[styles.label, { marginBottom: 8 }]}>Allocation</Text>
-        <View style={styles.allocationBar}>
-          {holdings.map((h, i) => {
-            const pct = totalValue > 0 ? (h.usdValue / totalValue) * 100 : 0;
-            const colors = [COLORS.accent, COLORS.up, '#F59E0B', '#8B5CF6'];
-            return (
-              <View 
-                key={h.symbol} 
-                style={{ flex: pct, backgroundColor: colors[i % colors.length] }} 
-              />
-            );
-          })}
+      {/* --- Recurring Buy (DCA) Card --- */}
+      <Container style={styles.dcaCard}>
+        <View style={styles.dcaLeft}>
+          <View style={styles.dcaIconWrap}>
+            <Ionicons name="calendar" size={20} color={COLORS.accent} />
+          </View>
+          <View>
+            <Text style={styles.dcaTitle}>Recurring buy (DCA)</Text>
+            <Text style={styles.dcaSub}>
+              {fmtUSD(dcaAmount || 0)} · {frequency} · {hasActivePlan ? 'Active' : 'Not active'}
+            </Text>
+          </View>
         </View>
-      </View>
-
-      {/* --- Holdings List --- */}
-      <SectionHeader 
-        title="Holdings" 
-        action={bestPerformer ? `Top: ${bestPerformer.symbol} (+${bestPerformer.change24h.toFixed(1)}%)` : undefined} 
-      />
-
-      <Container flush>
-        {holdings.map((h, i) => (
-          <ListRow
-            key={h.symbol}
-            leading={<CoinBadge symbol={h.symbol} />}
-            title={h.symbol}
-            subtitle={`${h.amount.toFixed(4)} ${h.symbol}`}
-            value={fmtUSD(h.usdValue)}
-            valueSub={fmtPct(h.change24h)}
-            valueTone={h.change24h >= 0 ? 'up' : 'down'}
-            onPress={() => onAsset(h.symbol)}
-            last={i === holdings.length - 1}
-          />
-        ))}
+        <View
+          accessibilityRole="switch"
+          accessibilityState={{ checked: !!hasActivePlan, disabled: true }}
+          style={[styles.toggle, hasActivePlan && styles.toggleActive]}
+        >
+          <View style={[styles.toggleKnob, hasActivePlan && styles.toggleKnobActive]} />
+        </View>
       </Container>
 
-      {/* --- Big Buy Button --- */}
-      <View style={{ marginTop: 16 }}>
-        <Button 
-          label={hasActivePlan ? "Buy Assets" : "Choose a Plan to Start"} 
-          icon={hasActivePlan ? "add-outline" : "lock-closed-outline"}
-          variant="accent" 
-          onPress={handleBuyPress} 
-        />
+      {/* --- Your Basket Section --- */}
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionTitle}>Your basket</Text>
+        <Pressable onPress={handleBuyPress}>
+          <Text style={styles.sectionAction}>Manage</Text>
+        </Pressable>
       </View>
+
+      <Pressable style={styles.basketCard} onPress={handleBuyPress}>
+        <View style={styles.basketIconWrap}>
+          <Ionicons name="layers" size={24} color={COLORS.accent} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.basketTitle}>{activeBasket?.name || 'No Basket Selected'}</Text>
+          <Text style={styles.basketSub}>
+             {activeBasket?.coins?.join(' · ') || 'Tap to choose a basket'}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={COLORS.t3} />
+      </Pressable>
+
+      {/* --- Assets List --- */}
+      <Text style={[styles.sectionTitle, { marginTop: 24, marginBottom: 12 }]}>Assets</Text>
+      
+      <Container flush style={{ paddingHorizontal: 0 }}>
+        {holdings.map((h, i) => (
+          <Pressable 
+            key={h.symbol} 
+            style={[styles.assetRow, i === holdings.length - 1 && { borderBottomWidth: 0 }]}
+            onPress={() => onAsset(h.symbol)}
+          >
+            <View style={styles.assetLeft}>
+              <CoinBadge symbol={h.symbol} size={40} />
+              <View>
+                <Text style={styles.assetName}>
+                  {h.symbol === 'ETH' ? 'Ethereum (ETH)' : h.symbol === 'USDC' ? 'USD Coin (USDC)' : `${h.symbol}`}
+                </Text>
+                <Text style={styles.assetSub}>
+                  {h.usdValue == null
+                    ? `${h.amount.toFixed(4)} ${h.symbol} · Price unavailable`
+                    : `${(totalValue > 0 ? (h.usdValue / totalValue) * 100 : 0).toFixed(1)}% · ${h.amount.toFixed(4)} ${h.symbol}`}
+                </Text>
+              </View>
+            </View>
+            
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={styles.assetValue}>
+                {h.usdValue == null ? 'Price unavailable' : fmtUSD(h.usdValue)}
+              </Text>
+              {h.change24h != null && (
+                <Text style={[styles.assetChange, { color: h.change24h >= 0 ? COLORS.up : COLORS.down }]}>
+                  {h.change24h >= 0 ? '▲' : '▼'} {fmtPct(Math.abs(h.change24h))}
+                </Text>
+              )}
+            </View>
+          </Pressable>
+        ))}
+      </Container>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  label: { fontSize: 13, color: COLORS.t2, fontWeight: '500' },
-  name: { fontSize: 24, fontWeight: '600', letterSpacing: -0.48, color: COLORS.t1 },
-  iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-  chipRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 28, paddingHorizontal: 10, borderRadius: 999 },
-  chipUp: { backgroundColor: COLORS.upSoft },
-  chipDown: { backgroundColor: COLORS.downSoft },
-  chipText: { fontSize: 13, fontWeight: '600' },
-  chipNote: { fontSize: 13, color: COLORS.t3 },
-  planName: { fontSize: 18, fontWeight: '600', color: COLORS.t1, marginTop: 4 },
-  planDetail: { fontSize: 13, color: COLORS.t2, marginTop: 2 },
-  nextBuyChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: COLORS.accentSoft, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  nextBuyText: { fontSize: 12, fontWeight: '600', color: COLORS.accentText },
-  quickActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, paddingHorizontal: 8 },
-  actionBtn: { alignItems: 'center', gap: 6 },
-  actionIconWrap: { width: 52, height: 52, borderRadius: 26, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.line },
-  actionText: { fontSize: 13, fontWeight: '500', color: COLORS.t1 },
-  allocationBar: { flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden', gap: 2 },
+  head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  logoWrap: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
+  logoText: { fontSize: 18, fontWeight: '700', color: COLORS.t1, letterSpacing: -0.5 },
+  iconBtn: { position: 'relative' },
+  notifDot: { position: 'absolute', top: 2, right: 2, width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.up, borderWidth: 2, borderColor: COLORS.bg },
+  
+  label: { fontSize: 14, color: COLORS.t2, fontWeight: '500', marginBottom: 4 },
+  bigTitle: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5, color: COLORS.t1, marginBottom: 16 },
+  
+  // --- NEW: Upgrade Banner Styles ---
+  upgradeBanner: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: COLORS.accentSoft, 
+    padding: 16, 
+    borderRadius: 20, 
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: COLORS.accentMedium,
+  },
+  upgradeIconWrap: { 
+    width: 48, 
+    height: 48, 
+    borderRadius: 24, 
+    backgroundColor: COLORS.accent, 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  upgradeTitle: { fontSize: 16, fontWeight: '700', color: COLORS.accentText, marginBottom: 2 },
+  upgradeSub: { fontSize: 13, color: COLORS.t2, lineHeight: 18 },
+
+  valueCard: { padding: 20, borderRadius: 24 },
+  valueNote: { fontSize: 13, color: COLORS.t2, marginTop: 8, lineHeight: 18 },
+
+  quickActions: { flexDirection: 'row', gap: 12, marginTop: 20, marginBottom: 24 },
+  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 52, borderRadius: 26, gap: 6 },
+  actionBtnPrimary: { backgroundColor: COLORS.accent },
+  actionBtnSecondary: { backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.line },
+  actionTextPrimary: { fontSize: 15, fontWeight: '600', color: '#fff' },
+  actionTextSecondary: { fontSize: 15, fontWeight: '600', color: COLORS.t1 },
+
+  dcaCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: 20, marginBottom: 24 },
+  dcaLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  dcaIconWrap: { width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.accentSoft, alignItems: 'center', justifyContent: 'center' },
+  dcaTitle: { fontSize: 15, fontWeight: '600', color: COLORS.t1 },
+  dcaSub: { fontSize: 13, color: COLORS.t2, marginTop: 2 },
+  
+  toggle: { width: 48, height: 28, borderRadius: 14, backgroundColor: COLORS.soft, padding: 2, justifyContent: 'center' },
+  toggleActive: { backgroundColor: COLORS.accent },
+  toggleKnob: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 2 },
+  toggleKnobActive: { alignSelf: 'flex-end' },
+
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: COLORS.t1 },
+  sectionAction: { fontSize: 14, fontWeight: '600', color: COLORS.accent },
+
+  basketCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.card, padding: 16, borderRadius: 20, gap: 12, borderWidth: 1, borderColor: COLORS.line },
+  basketIconWrap: { width: 48, height: 48, borderRadius: 16, backgroundColor: COLORS.accentSoft, alignItems: 'center', justifyContent: 'center' },
+  basketTitle: { fontSize: 16, fontWeight: '600', color: COLORS.t1 },
+  basketSub: { fontSize: 13, color: COLORS.t2, marginTop: 4 },
+
+  assetRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.line },
+  assetLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  assetName: { fontSize: 16, fontWeight: '600', color: COLORS.t1 },
+  assetSub: { fontSize: 13, color: COLORS.t2, marginTop: 2 },
+  assetValue: { fontSize: 16, fontWeight: '600', color: COLORS.t1 },
+  assetChange: { fontSize: 13, fontWeight: '600', marginTop: 2 },
 });

@@ -1,7 +1,7 @@
 // src/components/ui/LineChart.tsx
 
 import { COLORS } from '@/constants/theme';
-import { useMemo } from 'react';
+import { useId } from 'react';
 import { View } from 'react-native';
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
 
@@ -32,12 +32,15 @@ interface LineChartProps {
 
 export function LineChart({ data, height = 180, showDot = true }: LineChartProps) {
   const w = 340;
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
 
-  const pts = data.map((v, i) => [
-    (i / (data.length - 1)) * w,
+  const validData = data.filter(Number.isFinite);
+  const safeData = validData.length > 0 ? validData : [0, 0];
+  const min = safeData.reduce((lowest, value) => Math.min(lowest, value), Infinity);
+  const max = safeData.reduce((highest, value) => Math.max(highest, value), -Infinity);
+  const range = max - min || 1; // Prevents division by zero if flat
+
+  const pts = safeData.map((v, i) => [
+    (i / (safeData.length - 1 || 1)) * w,
     height - 12 - ((v - min) / range) * (height - 32),
   ]);
 
@@ -46,7 +49,10 @@ export function LineChart({ data, height = 180, showDot = true }: LineChartProps
     .join(' ');
 
   const last = pts[pts.length - 1];
-  const id = useMemo(() => 'g' + Math.random().toString(36).slice(2, 8), []);
+  const id = useId().replace(/:/g, '');
+
+  const isPositive = safeData[safeData.length - 1] >= safeData[0];
+  const lineColor = isPositive ? COLORS.accent : COLORS.down;
 
   return (
     <View style={{ width: '100%', height }}>
@@ -58,10 +64,13 @@ export function LineChart({ data, height = 180, showDot = true }: LineChartProps
       >
         <Defs>
           <LinearGradient id={id} x1="0" x2="0" y1="0" y2="1">
-            <Stop offset="0" stopColor={COLORS.t1} stopOpacity="0.08" />
-            <Stop offset="1" stopColor={COLORS.t1} stopOpacity="0" />
+            {/* Fade from the accent purple to transparent */}
+            <Stop offset="0" stopColor={lineColor} stopOpacity="0.15" />
+            <Stop offset="1" stopColor={lineColor} stopOpacity="0" />
           </LinearGradient>
         </Defs>
+        
+        {/* Horizontal Grid Lines */}
         {[0.25, 0.5, 0.75].map((f) => (
           <Line
             key={f}
@@ -69,20 +78,27 @@ export function LineChart({ data, height = 180, showDot = true }: LineChartProps
             x2={w}
             y1={height * f}
             y2={height * f}
-            stroke="#EEF0F2"
+            stroke={COLORS.line}
             strokeWidth="1"
+            strokeDasharray="4 4" // Added dashes for a cleaner, premium look
           />
         ))}
+        
+        {/* The Gradient Fill */}
         <Path d={`${d} L${w},${height} L0,${height} Z`} fill={`url(#${id})`} />
+        
+        {/* The Purple Line */}
         <Path
           d={d}
           fill="none"
-          stroke={COLORS.t1}
-          strokeWidth="2"
+          stroke={lineColor}
+          strokeWidth="2.5"
           strokeLinejoin="round"
           strokeLinecap="round"
         />
-        {showDot && <Circle cx={last[0]} cy={last[1]} r="4" fill={COLORS.t1} />}
+        
+        {/* The Live Dot at the end */}
+        {showDot && <Circle cx={last[0]} cy={last[1]} r="4" fill={lineColor} />}
       </Svg>
     </View>
   );

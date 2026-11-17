@@ -7,16 +7,23 @@ export interface Basket {
   assets: number;
   risk: 'Conservative' | 'Balanced' | 'Growth';
   coins: string[];
+  equalWeightPct?: number;
 }
 
 export const BASKETS: Basket[] = [
   {
     id: 'top20',
     name: 'Top 20 Crypto',
-    description: 'The 20 largest assets by market cap, rebalanced monthly.',
+    description: 'Twenty leading crypto assets at 5% each. The list refreshes quarterly; only assets tradable on Base can be purchased.',
     assets: 20,
     risk: 'Balanced',
-    coins: ['BTC', 'ETH', 'SOL'],
+    coins: [
+      'BTC', 'ETH', 'USDT', 'BNB', 'XRP',
+      'USDC', 'SOL', 'TRX', 'DOGE', 'ADA',
+      'BCH', 'LINK', 'AVAX', 'SUI', 'XLM',
+      'HBAR', 'SHIB', 'DOT', 'LTC', 'TON',
+    ],
+    equalWeightPct: 5,
   },
   {
     id: 'btceth',

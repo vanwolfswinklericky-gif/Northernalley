@@ -7,7 +7,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://northernalley.vercel
 
 export interface Transaction {
   id: string;
-  type: 'dca_buy' | 'fee' | 'subscription' | 'withdrawal';
+  type: 'dca_buy' | 'instant_buy' | 'fee' | 'subscription' | 'withdrawal';
   amount_usd: number;
   status: string;
   created_at: string;

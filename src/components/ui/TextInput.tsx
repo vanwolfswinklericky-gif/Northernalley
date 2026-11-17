@@ -1,6 +1,6 @@
 // src/components/ui/TextInput.tsx
 
-import { COLORS, SPACING } from '@/constants/theme';
+import { COLORS, RADIUS, SPACING } from '@/constants/theme';
 import { useState, type ReactNode } from 'react';
 import type { TextInputProps as RNTextInputProps } from 'react-native';
 import { TextInput as RNTextInput, StyleSheet, Text, View } from 'react-native';
@@ -20,6 +20,7 @@ interface TextInputProps {
   maxLength?: number;
   inputMode?: RNTextInputProps['inputMode'];
   textContentType?: RNTextInputProps['textContentType'];
+  editable?: RNTextInputProps['editable'];
 }
 
 export function TextInput({
@@ -37,19 +38,25 @@ export function TextInput({
   maxLength,
   inputMode,
   textContentType,
+  editable,
 }: TextInputProps) {
   const [focus, setFocus] = useState(false);
 
   return (
     <View style={styles.field}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[styles.row, focus && styles.rowFocus, !!error && styles.rowError]}>
+      
+      <View style={[
+        styles.container, 
+        focus && styles.containerFocus, 
+        !!error && styles.containerError
+      ]}>
         <RNTextInput
           style={styles.input}
           value={value}
           onChangeText={onChange}
           placeholder={placeholder}
-          placeholderTextColor="#C4C7CC"
+          placeholderTextColor={COLORS.t3}
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
@@ -57,37 +64,65 @@ export function TextInput({
           maxLength={maxLength}
           inputMode={inputMode}
           textContentType={textContentType}
+          editable={editable}
           onFocus={() => setFocus(true)}
           onBlur={() => setFocus(false)}
         />
-        {right}
+        {right && <View style={styles.rightContent}>{right}</View>}
       </View>
+
       {(error || hint) && (
-        <Text style={[styles.hint, !!error && styles.hintError]}>{error || hint}</Text>
+        <Text style={[styles.hint, !!error && styles.hintError]}>
+          {error || hint}
+        </Text>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  field: { marginBottom: SPACING.s4 },
-  label: { fontSize: 13, color: COLORS.t2, fontWeight: '500', marginBottom: SPACING.s1 },
-  row: {
+  field: { 
+    marginBottom: SPACING.s4 
+  },
+  label: { 
+    fontSize: 14, 
+    color: COLORS.t1, 
+    fontWeight: '600', 
+    marginBottom: 8 
+  },
+  container: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.line,
+    backgroundColor: COLORS.card,
+    borderWidth: 1.5,
+    borderColor: COLORS.line, // Default gray
+    borderRadius: RADIUS.lg,
+    height: 56, // Taller for a premium feel
+    paddingHorizontal: 16,
   },
-  rowFocus: { borderBottomColor: COLORS.t1 },
-  rowError: { borderBottomColor: COLORS.down },
+  containerFocus: { 
+    borderColor: COLORS.accent // Purple when focused
+  },
+  containerError: { 
+    borderColor: COLORS.danger // Red when error
+  },
   input: {
     flex: 1,
-    height: 48,
-    fontSize: 17,
+    height: '100%',
+    fontSize: 16,
     color: COLORS.t1,
-    letterSpacing: -0.17,
+    fontWeight: '500',
   },
-  hint: { marginTop: 6, fontSize: 12, color: COLORS.t3 },
-  hintError: { color: COLORS.down },
+  rightContent: {
+    marginLeft: 8,
+  },
+  hint: { 
+    marginTop: 8, 
+    fontSize: 12, 
+    color: COLORS.t2,
+    fontWeight: '500',
+  },
+  hintError: { 
+    color: COLORS.danger 
+  },
 });

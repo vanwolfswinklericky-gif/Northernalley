@@ -3,5 +3,10 @@ import { useRouter } from 'expo-router';
 
 export default function AboutRoute() {
   const router = useRouter();
-  return <AboutScreen onBack={() => router.back()} />;
+  return (
+    <AboutScreen
+      onBack={() => router.back()}
+      onSupport={() => router.push('/(app)/support')}
+    />
+  );
 }

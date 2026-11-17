@@ -21,15 +21,25 @@ export function Toggle({ value, onChange }: ToggleProps) {
 
 const styles = StyleSheet.create({
   track: {
-    width: 44, height: 26, borderRadius: 13,
-    backgroundColor: '#E3E4E7',
+    width: 44, 
+    height: 26, 
+    borderRadius: 13,
+    backgroundColor: COLORS.soft, // Soft gray for inactive
     justifyContent: 'center',
   },
-  trackOn: { backgroundColor: COLORS.t1 },
+  trackOn: { 
+    backgroundColor: COLORS.accent // Vibrant purple for active
+  },
   knob: {
-    width: 20, height: 20, borderRadius: 10,
-    backgroundColor: '#fff', marginLeft: 3,
-    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 3,
+    width: 20, 
+    height: 20, 
+    borderRadius: 10,
+    backgroundColor: '#fff', 
+    marginLeft: 3,
+    shadowColor: '#000', 
+    shadowOpacity: 0.15, 
+    shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
+    elevation: 2, // Added for Android shadow
   },
 });

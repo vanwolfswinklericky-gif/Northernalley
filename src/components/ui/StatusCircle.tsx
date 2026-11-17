@@ -9,16 +9,22 @@ interface StatusCircleProps {
 }
 
 export function StatusCircle({ kind }: StatusCircleProps) {
+  const isOk = kind === 'ok';
+  const color = isOk ? COLORS.up : COLORS.danger;
+
   return (
     <View
       style={[
         styles.circle,
-        { backgroundColor: kind === 'ok' ? COLORS.up : COLORS.down },
+        { 
+          backgroundColor: color,
+          shadowColor: color,
+        },
       ]}
     >
       <Ionicons
-        name={kind === 'ok' ? 'checkmark' : 'alert'}
-        size={40}
+        name={isOk ? 'checkmark' : 'close'}
+        size={44}
         color="#fff"
       />
     </View>
@@ -27,11 +33,16 @@ export function StatusCircle({ kind }: StatusCircleProps) {
 
 const styles = StyleSheet.create({
   circle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
+    // Premium glow shadow
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
   },
 });

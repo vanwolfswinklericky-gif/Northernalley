@@ -24,13 +24,25 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'baseline',
+    alignItems: 'center', // Changed from baseline for cleaner alignment
     gap: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: COLORS.line, // Using theme color instead of hardcoded #F0F0F0
   },
-  last: { borderBottomWidth: 0 },
-  key: { fontSize: 15, color: COLORS.t2 },
-  value: { fontSize: 15, fontWeight: '600', color: COLORS.t1, textAlign: 'right' },
+  last: { 
+    borderBottomWidth: 0 
+  },
+  key: { 
+    fontSize: 14, 
+    color: COLORS.t2,
+    fontWeight: '500', // Added weight for better readability
+    flex: 1, // Ensures the key takes available space and doesn't push the value
+  },
+  value: { 
+    fontSize: 15, 
+    fontWeight: '700', // Bolder value for the "receipt" look
+    color: COLORS.t1, 
+    textAlign: 'right',
+  },
 });

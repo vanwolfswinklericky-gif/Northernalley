@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/Button';
 import { Container } from '@/components/ui/Container';
 import { Screen } from '@/components/ui/Screen';
-import { COLORS, SPACING } from '@/constants/theme';
+import { COLORS, RADIUS, SPACING } from '@/constants/theme';
 import { usePlanStore } from '@/store/planStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
@@ -267,18 +267,32 @@ export function PlanScreen({ onBack, onContinue }: PlanScreenProps) {
 }
 
 const styles = StyleSheet.create({
-  cardWrap: { marginBottom: 12 },
-  card: {},
-  cardSelected: { borderColor: COLORS.accent, borderWidth: 2 },
+  cardWrap: { marginBottom: 16 },
+  card: {
+    padding: 20,
+    borderRadius: RADIUS.xl,
+    backgroundColor: COLORS.card,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  cardSelected: { 
+    borderColor: COLORS.accent,
+    backgroundColor: COLORS.accentSoft, // Light purple tint when selected
+  },
   badge: {
     alignSelf: 'flex-start',
-    backgroundColor: COLORS.accentSoft,
+    backgroundColor: COLORS.accent,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
     marginBottom: 12,
   },
-  badgeText: { fontSize: 10, fontWeight: '700', color: COLORS.accentText, letterSpacing: 0.6 },
+  badgeText: { fontSize: 10, fontWeight: '700', color: '#fff', letterSpacing: 0.6 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
   name: { fontSize: 20, fontWeight: '700', color: COLORS.t1, letterSpacing: -0.4 },
   tagline: { fontSize: 13, color: COLORS.t2, marginTop: 2 },
@@ -293,17 +307,17 @@ const styles = StyleSheet.create({
   },
   checkCircleOn: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginBottom: 16 },
-  price: { fontSize: 28, fontWeight: '700', color: COLORS.t1, letterSpacing: -0.8 },
+  price: { fontSize: 32, fontWeight: '700', color: COLORS.t1, letterSpacing: -0.8 },
   per: { fontSize: 14, color: COLORS.t2, fontWeight: '500' },
-  features: { gap: 8 },
+  features: { gap: 10 },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  featureText: { fontSize: 14, color: COLORS.t1 },
+  featureText: { fontSize: 14, color: COLORS.t1, fontWeight: '500' },
   expandRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    marginTop: 16,
+    marginTop: 20,
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: COLORS.line,
@@ -311,7 +325,7 @@ const styles = StyleSheet.create({
   expandText: { fontSize: 13, fontWeight: '600', color: COLORS.accent },
   detailsWrap: {
     backgroundColor: COLORS.card,
-    borderRadius: 20,
+    borderRadius: RADIUS.xl,
     paddingHorizontal: 20,
     marginTop: -8,
     marginBottom: 4,
@@ -333,7 +347,7 @@ const styles = StyleSheet.create({
   note: { fontSize: 12, color: COLORS.t3, textAlign: 'center', marginTop: SPACING.s3, paddingHorizontal: SPACING.s4, lineHeight: 18 },
 
   inlineAddOns: {
-    marginTop: 16,
+    marginTop: 20,
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: COLORS.line,
@@ -348,11 +362,11 @@ const styles = StyleSheet.create({
   inlineAddOnRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.card,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: COLORS.line,
     gap: 12,
   },
   inlineAddOnRowActive: {
@@ -362,7 +376,7 @@ const styles = StyleSheet.create({
   addOnText: {
     fontSize: 14,
     fontWeight: '500',
-    color: COLORS.accentText,
+    color: COLORS.t1,
   },
   addOnPriceText: {
     fontSize: 13,

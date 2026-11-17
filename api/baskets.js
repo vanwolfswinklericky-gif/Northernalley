@@ -1,7 +1,7 @@
 // api/baskets.js
 
 import { parseUnits } from 'viem';
-import { normalizeEthUsdcWeights } from './_lib/basket-weights.js';
+import { normalizeBasketWeights } from './_lib/basket-weights.js';
 import { pool } from './_lib/db.js';
 import { executeSwapBatch } from './_lib/execute-swap.js';
 import { canAddBasket, PLAN_LIMITS } from './_lib/plan-limits.js';
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         baskets: allBaskets.rows.map((basket) => ({
           ...basket,
-          coins: normalizeEthUsdcWeights(basket.coins),
+          coins: normalizeBasketWeights(basket.slug, basket.coins),
         })),
         plan,
         limits,
@@ -130,7 +130,7 @@ export default async function handler(req, res) {
 
         // 1. Fetch basket from DB
         const { rows: basketRows } = await pool.query(
-          `SELECT coins FROM baskets WHERE id = $1`,
+          `SELECT slug, coins FROM baskets WHERE id = $1`,
           [basketId]
         );
 
@@ -140,9 +140,10 @@ export default async function handler(req, res) {
 
         let basketAssets;
         try {
-          const rawCoins = basketRows[0].coins;
-          basketAssets = typeof rawCoins === 'string' ? JSON.parse(rawCoins) : rawCoins;
-          basketAssets = normalizeEthUsdcWeights(basketAssets);
+          basketAssets = normalizeBasketWeights(
+            basketRows[0].slug,
+            basketRows[0].coins,
+          );
         } catch {
           return res.status(400).json({ error: 'Invalid basket data' });
         }

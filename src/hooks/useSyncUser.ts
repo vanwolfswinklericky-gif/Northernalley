@@ -41,5 +41,5 @@ export function useSyncUser() {
         }
       })
       .catch((err) => console.error('❌ Sync error:', err.message));
-  }, [user?.id, wallets, setHasActivePlan]);
+  }, [user, wallets, setHasActivePlan]);
 }

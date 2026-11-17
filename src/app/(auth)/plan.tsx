@@ -15,12 +15,6 @@ export default function PlanRoute() {
         // Plan → Provision Signer → Baskets → Create Passcode → Dashboard
         router.push('/(auth)/provision-signer');
       }}
-      onSkip={() => {
-        // "Skip" means: default to starter plan, but still complete wallet setup.
-        // We cannot jump straight to (app) because the wallet guard would block it.
-        setPlan('starter');
-        router.push('/(auth)/provision-signer');
-      }}
     />
   );
 }

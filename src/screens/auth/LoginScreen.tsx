@@ -7,7 +7,7 @@ import { COLORS } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useLoginWithOAuth } from '@privy-io/expo';
 import { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface LoginScreenProps {
   onBack: () => void;
@@ -124,7 +124,15 @@ export function LoginScreen({
           </Pressable>
         }
       />
-      <Pressable onPress={() => {}} style={styles.forgot}>
+      <Pressable
+        onPress={() =>
+          Alert.alert(
+            'Password reset',
+            'Please contact support@northernalley.com to reset your password.',
+          )
+        }
+        style={styles.forgot}
+      >
         <Text style={styles.forgotText}>Forgot password?</Text>
       </Pressable>
     </Screen>

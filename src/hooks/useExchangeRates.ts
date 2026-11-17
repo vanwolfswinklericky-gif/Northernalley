@@ -47,7 +47,7 @@ export function useExchangeRates() {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }).format(converted);
-    } catch (e) {
+    } catch {
       // Absolute fallback if invalid currency code is passed
       return `${currency} ${converted.toFixed(2)}`;
     }

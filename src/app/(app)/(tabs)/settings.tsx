@@ -23,10 +23,7 @@ export default function SettingsRoute() {
 
   return (
     <SettingsScreen
-      onTab={(key) => router.replace(`/(app)/(tabs)/${key}`)}
       onProfile={() => router.push('/(app)/profile')}
-      
-      // Restrict Wallet to active subscribers
       onWallet={() => {
         if (hasActivePlan) {
           router.push('/(app)/wallet');
@@ -35,11 +32,8 @@ export default function SettingsRoute() {
           router.push('/(app)/plan');
         }
       }}
-
       onAbout={() => router.push('/(app)/about')}
       onPolicies={() => router.push('/(app)/policies')}
-      
-      // Restrict Plan/Basket management to active subscribers
       onPlan={() => {
         if (hasActivePlan) {
           router.push('/(app)/baskets');
@@ -47,7 +41,7 @@ export default function SettingsRoute() {
           router.push('/(app)/plan');
         }
       }}
-      
+      onSupport={() => router.push('/(app)/support')}
       onSignOut={signOut}
     />
   );
