@@ -27,7 +27,12 @@ export function Pills({ options, value, onChange, seg }: PillsProps) {
     );
   }
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.scroll}
+      contentContainerStyle={styles.row}
+    >
       {options.map((o) => (
         <Pressable
           key={o}
@@ -42,7 +47,8 @@ export function Pills({ options, value, onChange, seg }: PillsProps) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 8 },
+  scroll: { width: '100%', flexGrow: 0 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 8 },
   pill: {
     height: 40, 
     paddingHorizontal: 18, 

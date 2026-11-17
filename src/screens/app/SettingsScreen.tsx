@@ -66,7 +66,7 @@ export function SettingsScreen({
       .then((data) => {
         if (data.user) {
           setDbUser({
-            name: data.user.name || 'Northernalley User',
+            name: data.user.name || 'NorthernAlley User',
             email: data.user.email || (user as any).email?.address || 'No email',
             avatarUrl: data.user.avatarUrl,
           });

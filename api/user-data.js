@@ -19,7 +19,7 @@ export default async function handler(req, res) {
       const result = await pool.query('SELECT NOW() AS now');
       return res.status(200).json({ 
         ok: true, 
-        message: 'Northernalley backend is live', 
+        message: 'NorthernAlley backend is live',
         time: result.rows[0].now 
       });
     } catch (err) {

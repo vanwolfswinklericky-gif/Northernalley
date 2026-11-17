@@ -22,7 +22,7 @@ export function OnboardingScreen({ onStart, onSignIn }: OnboardingScreenProps) {
             style={styles.brandLogo}
             resizeMode="contain"
           />
-          <Text style={styles.brandName}>Northernalley</Text>
+          <Text style={styles.brandName}>NorthernAlley</Text>
         </View>
 
         <View style={styles.hero}>

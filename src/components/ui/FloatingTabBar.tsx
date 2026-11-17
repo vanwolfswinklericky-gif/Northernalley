@@ -1,6 +1,6 @@
 // src/components/ui/FloatingTabBar.tsx
 
-import { COLORS, RADIUS } from '@/constants/theme';
+import { COLORS, FLOATING_TAB_BAR_BOTTOM_OFFSET, RADIUS } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -20,7 +20,7 @@ export function FloatingTabBar() {
   const activeKey = TABS.find((t) => pathname.includes(t.key))?.key || 'dashboard';
 
   return (
-    <View style={styles.wrap} pointerEvents="box-none">
+    <View style={[styles.wrap, { bottom: FLOATING_TAB_BAR_BOTTOM_OFFSET }]} pointerEvents="box-none">
       <View style={styles.bar}>
         {TABS.map((t) => {
           const on = activeKey === t.key;
@@ -49,7 +49,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     right: 16,
-    bottom: 24,
     alignItems: 'center',
     zIndex: 10,
   },

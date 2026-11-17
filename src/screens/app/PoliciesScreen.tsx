@@ -15,7 +15,7 @@ const POLICIES: [string, string, string][] = [
   [
     'Terms of Service',
     'Updated Oct 2026',
-    'By using Northernalley you agree to these terms. Northernalley provides a recurring purchase service for digital assets. We do not provide investment advice. You are responsible for evaluating whether a plan is suitable for you.',
+    'By using NorthernAlley you agree to these terms. NorthernAlley provides a recurring purchase service for digital assets. We do not provide investment advice. You are responsible for evaluating whether a plan is suitable for you.',
   ],
   [
     'Privacy Policy',
@@ -30,7 +30,7 @@ const POLICIES: [string, string, string][] = [
   [
     'Fee Schedule',
     'Updated Oct 2026',
-    'A 1.5% service fee is included in each purchase. There are no account, custody, or withdrawal fees charged by Northernalley. Network fees may apply when sending assets.',
+    'A 1.5% service fee is included in each purchase. There are no account, custody, or withdrawal fees charged by NorthernAlley. Network fees may apply when sending assets.',
   ],
   [
     'Cookie Policy',

@@ -1,6 +1,6 @@
 // src/components/ui/Screen.tsx
 
-import { COLORS, SPACING, TYPE } from '@/constants/theme';
+import { COLORS, FLOATING_TAB_BAR_BOTTOM_OFFSET, SPACING, TYPE } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -37,7 +37,9 @@ export function Screen({
   const contentStyle = {
     paddingHorizontal: pad,
     paddingTop: SPACING.s3,
-    paddingBottom: tabs ? 72 + 16 + 20 + SPACING.s4 : footer ? SPACING.s4 : SPACING.s5,
+    paddingBottom: tabs
+      ? 72 + 16 + 20 + SPACING.s4 + FLOATING_TAB_BAR_BOTTOM_OFFSET
+      : footer ? SPACING.s4 : SPACING.s5,
     maxWidth: maxW,
     width: '100%' as const,
     alignSelf: 'center' as const,
@@ -46,7 +48,7 @@ export function Screen({
   const showNav = !!(onBack || progress != null || right);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
       <View style={styles.root}>
         {showNav && (
           <View style={[styles.nav, { maxWidth: maxW, alignSelf: 'center', width: '100%' }]}>

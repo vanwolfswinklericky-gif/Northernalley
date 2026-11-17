@@ -1,4 +1,5 @@
 import { Container } from '@/components/ui/Container';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { FloatingTabBar } from '@/components/ui/FloatingTabBar';
 import { ListRow } from '@/components/ui/ListRow';
 import { Screen } from '@/components/ui/Screen';
@@ -77,7 +78,11 @@ export function PerformanceScreen() {
               : 'Couldn’t load account activity.'}
           </Text>
         ) : recentPurchases.length === 0 ? (
-          <Text style={styles.note}>No completed purchases are recorded yet.</Text>
+          <EmptyState
+            icon="receipt-outline"
+            title="No completed purchases yet"
+            message="Your completed purchases will appear here."
+          />
         ) : (
           recentPurchases.map((transaction, index) => (
             <ListRow

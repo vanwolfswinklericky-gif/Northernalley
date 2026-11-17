@@ -25,11 +25,11 @@ export function AboutScreen({ onBack, onSupport }: AboutScreenProps) {
   };
 
   return (
-    <Screen onBack={onBack} title="About Northernalley">
+    <Screen onBack={onBack} title="About NorthernAlley">
       <Container>
         <Text style={styles.h3}>Our story</Text>
         <Text style={styles.p}>
-          Northernalley started with a simple belief: building wealth shouldn&apos;t require
+          NorthernAlley started with a simple belief: building wealth shouldn&apos;t require
           watching charts all day. Investing a steady amount every month is one of the
           oldest, calmest strategies there is — we just made it work for crypto.
         </Text>
