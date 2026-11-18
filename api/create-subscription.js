@@ -19,7 +19,7 @@ const ADDON_PRICES = {
 
 const DEPOSIT_FEE_RATE = 0.01;
 const FREE_PLAN_MAX_DEPOSIT = 1000;
-const MIN_DAILY_AMOUNT = 20; // €20 minimum for daily to cover gas fees
+const MIN_DAILY_AMOUNT = 20;
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -53,9 +53,9 @@ export default async function handler(req, res) {
     });
   }
 
-  // 2. Enforce Daily DCA minimum (Premium only feature, but still needs guard)
+  // 2. Enforce Daily DCA minimum
   if (frequency === 'daily' && amount < MIN_DAILY_AMOUNT) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       error: `Daily DCA requires a minimum of €${MIN_DAILY_AMOUNT} per deposit to cover Base network gas fees.`,
       code: 'AMOUNT_TOO_LOW_FOR_DAILY'
     });
@@ -95,9 +95,9 @@ export default async function handler(req, res) {
         customer: customer.id,
         mode: 'payment',
         line_items: one_time_items,
-        payment_intent_data: {
-          setup_future_usage: 'off_session',
-        },
+        // FIX: Removed setup_future_usage (illegal in payment mode without existing card)
+        // Instead, Stripe will save the card to the customer automatically because
+        // "payment_method_creation" is "always" (default). We retrieve it from the customer later.
         success_url: 'northernalley://(app)/success',
         cancel_url: 'northernalley://(app)/failure',
         metadata: {
@@ -107,6 +107,15 @@ export default async function handler(req, res) {
           dcaAmount: String(amount),
           frequency,
           addOns: '',
+        },
+        payment_intent_data: {
+          metadata: {
+            privyUserId,
+            plan: 'free',
+            basketId,
+            dcaAmount: String(amount),
+            frequency,
+          },
         },
       });
 
@@ -164,6 +173,7 @@ export default async function handler(req, res) {
           addOns: selectedAddOns.join(','),
         },
       },
+      payment_method_collection: 'always',
       success_url: 'northernalley://(app)/success',
       cancel_url: 'northernalley://(app)/failure',
       metadata: {

@@ -32,7 +32,7 @@ export const SPACING = {
   s6: 48,
 } as const;
 
-export const FLOATING_TAB_BAR_BOTTOM_OFFSET = 180;
+export const FLOATING_TAB_BAR_BOTTOM_OFFSET = 40;
 
 export const RADIUS = {
   sm: 8,

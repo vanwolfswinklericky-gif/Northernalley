@@ -30,6 +30,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://northernalley.vercel
 interface SettingsScreenProps {
   onProfile: () => void;
   onWallet: () => void;
+  onRecoveryPasscode: () => void;
   onAbout: () => void;
   onPolicies: () => void;
   onPlan: () => void;
@@ -38,7 +39,7 @@ interface SettingsScreenProps {
 }
 
 export function SettingsScreen({
-  onProfile, onWallet, onAbout, onPolicies, onPlan, onSupport, onSignOut,
+  onProfile, onWallet, onRecoveryPasscode, onAbout, onPolicies, onPlan, onSupport, onSignOut,
 }: SettingsScreenProps) {
   const { user, logout } = usePrivy();
   const { plan, status } = useSubscription();
@@ -272,6 +273,19 @@ export function SettingsScreen({
           subtitle={loadingPortal ? 'Opening portal...' : 'Manage cards & billing'}
           chevron
           onPress={handleOpenBilling}
+          iconColor={COLORS.accent}
+          last
+        />
+      </Container>
+
+      <SectionHeader title="Security" />
+      <Container flush>
+        <ListRow
+          icon="key-outline"
+          title="Wallet recovery passcode"
+          subtitle="Set or change your 8-digit recovery code"
+          chevron
+          onPress={onRecoveryPasscode}
           iconColor={COLORS.accent}
           last
         />

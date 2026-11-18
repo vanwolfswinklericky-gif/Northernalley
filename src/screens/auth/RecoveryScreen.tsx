@@ -2,14 +2,15 @@
 
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
-import { COLORS, RADIUS } from '@/constants/theme';
+import { COLORS } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useRecoverEmbeddedWallet } from '@privy-io/expo';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, TextInput as RNTextInput, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useRecoveryStore } from '@/store/recoveryStore';
+import { TextInput } from '@/components/ui/TextInput';
 
 export function RecoveryScreen() {
   const router = useRouter();
@@ -20,13 +21,22 @@ export function RecoveryScreen() {
   const [passcode, setPasscode] = useState('');
   const [showPasscode, setShowPasscode] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const isValid = passcode.length >= 4;
+  const isValid = passcode.length === 8;
 
   const handleRecover = async () => {
-    if (!isValid) return;
+    if (!isValid) {
+      setError('Enter the 8-digit wallet recovery passcode.');
+      return;
+    }
+    if (!onRecovered) {
+      setError('Wallet recovery is still initializing. Please wait and try again.');
+      return;
+    }
 
     setLoading(true);
+    setError(null);
     try {
       await recover({
         recoveryMethod: 'user-passcode',
@@ -34,12 +44,16 @@ export function RecoveryScreen() {
       });
 
       // CRITICAL: notify the Privy SDK that recovery is complete.
-      onRecovered?.();
+      onRecovered();
       clearRecovery();
 
-      router.replace('/(app)/(tabs)/dashboard');
-    } catch (err: any) {
-      Alert.alert('Recovery Failed', err.message || 'Invalid passcode. Please try again.');
+      router.replace('/');
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Could not recover the wallet. Check the passcode and try again.',
+      );
     } finally {
       setLoading(false);
     }
@@ -48,7 +62,7 @@ export function RecoveryScreen() {
   return (
     <Screen
       title="Welcome back"
-      subtitle="Enter your security passcode to unlock your wallet on this device."
+      subtitle="After signing in to your account, enter your 8-digit recovery passcode to restore your wallet."
       footer={
         <View style={{ paddingBottom: 24 }}>
           <Button
@@ -67,36 +81,34 @@ export function RecoveryScreen() {
         </View>
       </View>
 
-      <Text style={styles.label}>Security Passcode</Text>
-      
-      <View style={styles.inputContainer}>
-        <RNTextInput
-          style={styles.input}
-          value={passcode}
-          onChangeText={(text) => setPasscode(text.replace(/[^0-9]/g, ''))} // Only numbers
-          placeholder="••••"
-          placeholderTextColor={COLORS.t3}
-          secureTextEntry={!showPasscode}
-          keyboardType="number-pad"
-          maxLength={6}
-          autoFocus
-        />
-        <Pressable onPress={() => setShowPasscode(!showPasscode)} style={styles.eyeButton}>
-          <Ionicons 
-            name={showPasscode ? 'eye-off-outline' : 'eye-outline'} 
-            size={22} 
-            color={COLORS.t2} 
-          />
-        </Pressable>
-      </View>
+      <TextInput
+        label="8-digit wallet recovery passcode"
+        value={passcode}
+        onChange={(value) => setPasscode(value.replace(/[^0-9]/g, ''))}
+        placeholder="Enter 8 digits"
+        secureTextEntry={!showPasscode}
+        keyboardType="number-pad"
+        maxLength={8}
+        autoFocus
+        error={error}
+        right={
+          <Pressable onPress={() => setShowPasscode(!showPasscode)} style={styles.eyeButton}>
+            <Ionicons
+              name={showPasscode ? 'eye-off-outline' : 'eye-outline'}
+              size={22}
+              color={COLORS.t2}
+            />
+          </Pressable>
+        }
+      />
 
       <Text style={styles.helperText}>
-        This is the 4-6 digit passcode you created when you first set up your wallet.
+        This is the passcode you created when you set up wallet recovery. NorthernAlley cannot reset or retrieve it.
       </Text>
 
-      <Pressable style={styles.forgotLink} onPress={() => Alert.alert('Support', 'Please contact support to reset your wallet.')}>
-        <Text style={styles.forgotText}>Forgot your passcode?</Text>
-      </Pressable>
+      <Text style={styles.forgotNote}>
+        Forgot your passcode? If you have no other backup recovery method, the wallet may be unrecoverable.
+      </Text>
     </Screen>
   );
 }
@@ -117,31 +129,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.accentMedium,
   },
-  label: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.t1,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.card,
-    borderWidth: 2,
-    borderColor: COLORS.accent, // Highlighted purple border
-    borderRadius: RADIUS.lg,
-    height: 64,
-    paddingHorizontal: 16,
-  },
-  input: {
-    flex: 1,
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.t1,
-    letterSpacing: 8, // Spaced out for a PIN feel
-    textAlign: 'center',
-  },
   eyeButton: {
     padding: 8,
   },
@@ -153,14 +140,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     paddingHorizontal: 20,
   },
-  forgotLink: {
-    alignSelf: 'center',
-    marginTop: 24,
-    padding: 8,
-  },
-  forgotText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.accent,
+  forgotNote: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: COLORS.t3,
+    textAlign: 'center',
+    paddingHorizontal: 24,
   },
 });

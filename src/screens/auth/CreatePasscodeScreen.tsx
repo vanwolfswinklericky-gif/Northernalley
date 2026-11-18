@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS, RADIUS } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { isNotCreated, needsRecovery, useEmbeddedWallet } from '@privy-io/expo';
+import { hasError, isCreating, isNotCreated, useEmbeddedWallet } from '@privy-io/expo';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export function CreatePasscodeScreen() {
   const router = useRouter();
@@ -17,35 +17,27 @@ export function CreatePasscodeScreen() {
   const [confirm, setConfirm] = useState('');
   const [showPasscode, setShowPasscode] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const isValid = passcode.length >= 4 && passcode === confirm;
+  const walletCreating = isCreating(wallet);
+  const canCreateWallet = isNotCreated(wallet) || hasError(wallet);
+  const isValid = passcode.length === 8 && passcode === confirm;
 
   const handleCreate = async () => {
-    if (passcode.length < 4) {
-      Alert.alert('Error', 'Passcode must be at least 4 digits.');
-      return;
-    }
-    if (passcode !== confirm) {
-      Alert.alert('Error', 'Passcodes do not match.');
+    if (!isValid || !canCreateWallet) {
       return;
     }
 
     setLoading(true);
+    setError(null);
     try {
-      if (isNotCreated(wallet)) {
-        await wallet.create({
-          recoveryMethod: 'user-passcode',
-          password: passcode,
-        });
-        // NEW: Route to dashboard so they can choose a plan from the upgrade banner
-        router.replace('/(app)/(tabs)/dashboard'); 
-      } else if (needsRecovery(wallet)) {
-        router.replace('/(auth)/recovery');
-      } else {
-        router.replace('/(app)/(tabs)/dashboard');
-      }
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to create wallet.');
+      await wallet.create({
+        recoveryMethod: 'user-passcode',
+        password: passcode,
+      });
+      router.replace('/(app)/plan');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to create your wallet. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -53,17 +45,18 @@ export function CreatePasscodeScreen() {
 
   return (
     <Screen
-      title="Secure Your Wallet"
-      subtitle="Set a passcode to recover your wallet on new devices."
+      title="Create Your Recovery Passcode"
+      subtitle="Use this 8-digit passcode to recover your wallet after signing in on a new device."
       footer={
         <View style={{ paddingBottom: 24 }}>
           <Button
-            label="Create Wallet"
+            label={walletCreating || loading ? 'Creating wallet…' : 'Create Wallet'}
             onPress={handleCreate}
-            loading={loading}
-            disabled={!isValid}
+            loading={walletCreating || loading}
+            disabled={!isValid || !canCreateWallet}
             variant="accent"
           />
+          {error && <Text style={styles.errorText}>{error}</Text>}
         </View>
       }
     >
@@ -75,21 +68,21 @@ export function CreatePasscodeScreen() {
       </View>
 
       <Text style={styles.helperText}>
-        This 4-digit passcode encrypts your wallet. If you lose your phone, this is the only way to recover your funds. <Text style={{fontWeight: '700', color: COLORS.t1}}>Do not forget it.</Text>
+        You’ll need to sign in to your account before using this passcode to recover your wallet. NorthernAlley does not store the passcode, so keep it somewhere safe and never share it.
       </Text>
 
       {/* Passcode Input */}
-      <Text style={styles.label}>Passcode</Text>
+      <Text style={styles.label}>8-digit passcode</Text>
       <View style={[styles.inputContainer, passcode.length > 0 && !showPasscode && styles.inputActive]}>
         <TextInput
           style={styles.input}
           value={passcode}
-          onChangeText={(text) => setPasscode(text.replace(/[^0-9]/g, ''))} // Only numbers
-          placeholder="••••"
+          onChangeText={(text) => setPasscode(text.replace(/[^0-9]/g, ''))}
+          placeholder="••••••••"
           placeholderTextColor={COLORS.t3}
           secureTextEntry={!showPasscode}
           keyboardType="number-pad"
-          maxLength={6}
+          maxLength={8}
           autoFocus
         />
         <Pressable onPress={() => setShowPasscode(!showPasscode)} style={styles.eyeButton}>
@@ -102,17 +95,17 @@ export function CreatePasscodeScreen() {
       </View>
 
       {/* Confirm Passcode Input */}
-      <Text style={[styles.label, { marginTop: 16 }]}>Confirm Passcode</Text>
+      <Text style={[styles.label, { marginTop: 16 }]}>Confirm 8-digit passcode</Text>
       <View style={[styles.inputContainer, confirm.length > 0 && confirm === passcode && styles.inputSuccess]}>
         <TextInput
           style={styles.input}
           value={confirm}
           onChangeText={(text) => setConfirm(text.replace(/[^0-9]/g, ''))}
-          placeholder="••••"
+          placeholder="••••••••"
           placeholderTextColor={COLORS.t3}
           secureTextEntry={!showPasscode}
           keyboardType="number-pad"
-          maxLength={6}
+          maxLength={8}
         />
       </View>
       
@@ -171,7 +164,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: COLORS.t1,
     letterSpacing: 8, // PIN style spacing
@@ -186,5 +179,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginLeft: 4,
     fontWeight: '500',
+  },
+  errorText: {
+    color: COLORS.danger,
+    fontSize: 13,
+    marginTop: 12,
+    textAlign: 'center',
   },
 });

@@ -1,21 +1,25 @@
 import * as Crypto from 'expo-crypto';
 import { COLORS } from '@/constants/theme';
+import { useRecoveryStore } from '@/store/recoveryStore';
 import { usePlanStore } from '@/store/planStore';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, useFonts } from '@expo-google-fonts/inter';
 import {
   getAllUserEmbeddedEthereumWallets,
+  hasError,
   isConnected,
+  isCreating,
   isNotCreated,
   needsRecovery,
   PrivyProvider,
   useEmbeddedWallet,
+  useOnNeedsRecovery,
   usePrivy,
 } from '@privy-io/expo';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StatusBar, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { ActivityIndicator, StatusBar, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 if (typeof (globalThis as any).crypto === 'undefined') (globalThis as any).crypto = {};
@@ -32,10 +36,8 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://northernalley.vercel
 function RootNavigator() {
   const { user, isReady } = usePrivy();
   const wallet = useEmbeddedWallet();
-  const [walletCreationError, setWalletCreationError] = useState<string | null>(null);
-  const [walletCreationRetry, setWalletCreationRetry] = useState(0);
+  const setOnRecovered = useRecoveryStore((state) => state.setOnRecovered);
   const hasSyncedUserRef = useRef<string | null>(null);
-  const walletCreationForUserRef = useRef<string | null>(null);
 
   const loggedIn = !!user;
   const walletReady = isConnected(wallet);
@@ -44,26 +46,17 @@ function RootNavigator() {
     : undefined;
   const walletNeedsRecovery = needsRecovery(wallet);
   const walletNotCreated = isNotCreated(wallet);
+  const walletCreating = isCreating(wallet);
+  const walletHasError = hasError(wallet);
   
   // Get plan details for pending wallet sync
   const { basketId, amount, frequency } = usePlanStore();
 
-  useEffect(() => {
-    if (
-      !user?.id ||
-      !walletNotCreated ||
-      walletCreationForUserRef.current === user.id
-    ) {
-      return;
-    }
-
-    walletCreationForUserRef.current = user.id;
-    wallet.create({ recoveryMethod: 'privy' }).catch((error: unknown) => {
-      setWalletCreationError(
-        error instanceof Error ? error.message : 'Could not create your wallet.',
-      );
-    });
-  }, [user?.id, walletNotCreated, wallet, walletCreationRetry]);
+  useOnNeedsRecovery({
+    onNeedsRecovery: ({ onRecovered }) => {
+      setOnRecovered(onRecovered);
+    },
+  });
 
   // --- RACE CONDITION FIX: Sync Wallet on Login ---
   useEffect(() => {
@@ -126,30 +119,7 @@ function RootNavigator() {
     frequency,
   ]);
 
-  if (walletCreationError) {
-    return (
-      <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-        <Text style={{ color: COLORS.t1, fontSize: 16, textAlign: 'center', marginBottom: 16 }}>
-          Wallet setup failed: {walletCreationError}
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            walletCreationForUserRef.current = null;
-            setWalletCreationError(null);
-            setWalletCreationRetry((retry) => retry + 1);
-          }}
-          style={{ backgroundColor: COLORS.accent, borderRadius: 24, paddingHorizontal: 24, paddingVertical: 12 }}
-        >
-          <Text style={{ color: '#fff', fontWeight: '600' }}>Retry wallet setup</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  // Keep the router mounted only after the wallet is ready or recovery is required.
-  const walletSetupPending = loggedIn && !walletReady && !walletNeedsRecovery;
-  if (!isReady || walletSetupPending) {
+  if (!isReady) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator color={COLORS.accent} />
@@ -165,6 +135,10 @@ function RootNavigator() {
 
       <Stack.Protected guard={loggedIn && walletNeedsRecovery}>
         <Stack.Screen name="(auth)/recovery" />
+      </Stack.Protected>
+
+      <Stack.Protected guard={loggedIn && (walletNotCreated || walletCreating || walletHasError)}>
+        <Stack.Screen name="(auth)/create-passcode" />
       </Stack.Protected>
 
       <Stack.Protected guard={loggedIn && walletReady}>

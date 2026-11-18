@@ -32,6 +32,7 @@ export default function SettingsRoute() {
           router.push('/(app)/plan');
         }
       }}
+      onRecoveryPasscode={() => router.push('/(app)/recovery-passcode')}
       onAbout={() => router.push('/(app)/about')}
       onPolicies={() => router.push('/(app)/policies')}
       onPlan={() => {

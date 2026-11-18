@@ -137,7 +137,7 @@ export function ProvisionSignerScreen({ onBack, onSuccess }: ProvisionSignerScre
               <Ionicons name="checkmark" size={14} color="#fff" />
             </View>
             <Text style={styles.bulletText}>
-              Restricted to swaps only — <Text style={{fontWeight: '700'}}>no withdrawals allowed</Text>
+              Restricted to swaps only — <Text style={{fontWeight: '700'}}>NorthernAlley cannot withdraw your funds</Text>
             </Text>
           </View>
           <View style={styles.bullet}>
@@ -159,7 +159,7 @@ export function ProvisionSignerScreen({ onBack, onSuccess }: ProvisionSignerScre
       )}
 
       <Text style={styles.note}>
-        Your funds always stay in your non-custodial wallet. NorthernAlley never holds your keys. You can revoke this permission anytime from Settings.
+        Your funds always stay in your non-custodial wallet. NorthernAlley never holds your keys. You can revoke these permissions anytime from Settings.
       </Text>
     </Screen>
   );
