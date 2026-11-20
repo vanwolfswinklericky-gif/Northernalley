@@ -19,9 +19,17 @@ export default async function handler(req, res) {
   if (!privyUserId) return res.status(400).json({ error: 'Missing privyUserId' });
 
   try {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(503).json({ error: 'Stripe billing is not configured.' });
+    }
+
     // 1. Find the user's Stripe customer ID in Neon
     const result = await pool.query(
-      'SELECT s.stripe_customer_id FROM subscriptions s JOIN users u ON u.id = s.user_id WHERE u.privy_user_id = \ AND s.status = \'active\' LIMIT 1',
+      `SELECT s.stripe_customer_id
+       FROM subscriptions s
+       JOIN users u ON u.id = s.user_id
+       WHERE u.privy_user_id = $1 AND s.status = 'active'
+       LIMIT 1`,
       [privyUserId]
     );
 
@@ -36,6 +44,9 @@ export default async function handler(req, res) {
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: 'northernalley://(app)/(tabs)/settings',
+      ...(process.env.STRIPE_BILLING_PORTAL_CONFIGURATION_ID
+        ? { configuration: process.env.STRIPE_BILLING_PORTAL_CONFIGURATION_ID }
+        : {}),
     });
 
     return res.status(200).json({ url: session.url });

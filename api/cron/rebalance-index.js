@@ -20,7 +20,7 @@ async function fetchTop20FromCMC() {
 
 export default async function handler(req, res) {
   // Security: require CRON_SECRET header
-  if (req.headers['authorization'] !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || req.headers['authorization'] !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -62,16 +62,9 @@ export default async function handler(req, res) {
     let processed = 0;
     const errors = [];
 
-    // 4. Rebalance each user's wallet (placeholder — you need fetchWalletBalances)
-    for (const user of users) {
-      try {
-        // TODO: Fetch current wallet balances here
-        // Then build swaps to sell old coins and buy new ones
-        processed++;
-      } catch (err) {
-        errors.push({ userId: user.user_id, error: err.message });
-      }
-    }
+    // 4. Existing-user rebalancing is handled after DCA executions.
+    // This index refresh only updates the basket definition and notifies users.
+    processed = users.length;
 
     // 5. Send push notification to all users
     for (const user of users) {

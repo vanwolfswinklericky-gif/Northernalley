@@ -13,6 +13,7 @@ import { registerForPushNotifications } from '@/lib/notifications';
 import { usePlanStore } from '@/store/planStore';
 import { usePortfolioStore } from '@/store/portfolioStore';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
 import {
   getAllUserEmbeddedEthereumWallets,
   useMfaEnrollment,
@@ -75,6 +76,13 @@ export function SettingsScreen({
       })
       .catch(console.error);
   }, [user]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    Notifications.getPermissionsAsync()
+      .then(({ status }) => setNotif(status === 'granted'))
+      .catch(() => setNotif(false));
+  }, [user?.id]);
 
   const hasPasskeyMfa = (user as any)?.mfaMethods?.includes('passkey') ?? false;
   const bio = bioOverride ?? hasPasskeyMfa;
@@ -139,7 +147,17 @@ export function SettingsScreen({
         Alert.alert('Error', 'Could not enable notifications. Please try again.');
       }
     } else {
+      if (!user?.id) return;
       setNotif(false);
+      try {
+        await fetch(`${API_URL}/api/register-push`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ privyUserId: user.id, pushToken: null }),
+        });
+      } catch (error) {
+        console.warn('Failed to clear push token:', error);
+      }
     }
   };
 

@@ -12,7 +12,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { usePlanStore } from '@/store/planStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface DashboardScreenProps {
   onBuy: () => void;
@@ -80,7 +80,11 @@ export function DashboardScreen({ onBuy, onChoosePlan, onWallet, onAsset }: Dash
       <View style={styles.head}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <View style={styles.logoWrap}>
-            <Ionicons name="layers" size={20} color="#fff" />
+            <Image
+              source={require('../../../assets/images/splash-logo.png')}
+              style={styles.logoImage}
+              resizeMode="cover"
+            />
           </View>
           <Text style={styles.logoText}>NorthernAlley</Text>
         </View>
@@ -142,8 +146,9 @@ export function DashboardScreen({ onBuy, onChoosePlan, onWallet, onAsset }: Dash
         </Pressable>
         
         <Pressable
-          style={styles.actionBtnSecondary}
-          onPress={() => Alert.alert('Swap', 'Swaps are not available yet.')}
+          style={[styles.actionBtnSecondary, styles.actionBtnDisabled]}
+          disabled
+          onPress={() => undefined}
         >
           <Ionicons name="swap-horizontal" size={20} color={COLORS.t1} />
           <Text style={styles.actionTextSecondary}>Swap</Text>
@@ -242,7 +247,8 @@ export function DashboardScreen({ onBuy, onChoosePlan, onWallet, onAsset }: Dash
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  logoWrap: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
+  logoWrap: { width: 32, height: 32, borderRadius: 16, overflow: 'hidden', backgroundColor: COLORS.accent },
+  logoImage: { width: 32, height: 32 },
   logoText: { fontSize: 18, fontWeight: '700', color: COLORS.t1, letterSpacing: -0.5 },
   iconBtn: { position: 'relative' },
   notifDot: { position: 'absolute', top: 2, right: 2, width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.up, borderWidth: 2, borderColor: COLORS.bg },
@@ -280,6 +286,7 @@ const styles = StyleSheet.create({
   actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 52, borderRadius: 26, gap: 6 },
   actionBtnPrimary: { backgroundColor: COLORS.accent },
   actionBtnSecondary: { backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.line },
+  actionBtnDisabled: { opacity: 0.45 },
   actionTextPrimary: { fontSize: 15, fontWeight: '600', color: '#fff' },
   actionTextSecondary: { fontSize: 15, fontWeight: '600', color: COLORS.t1 },
 

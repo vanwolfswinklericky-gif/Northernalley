@@ -15,12 +15,12 @@ interface AboutScreenProps {
 export function AboutScreen({ onBack, onSupport }: AboutScreenProps) {
   const openEmail = async () => {
     try {
-      const url = 'mailto:hello@northernalley.com';
+      const url = 'mailto:info@Northernalley.com';
       if (!(await Linking.canOpenURL(url))) throw new Error('No email app is available.');
       await Linking.openURL(url);
     } catch (error) {
       console.error('Unable to open the support email:', error);
-      Alert.alert('Email unavailable', 'Please contact support@northernalley.com.');
+      Alert.alert('Email unavailable', 'Please contact info@Northernalley.com.');
     }
   };
 
@@ -49,7 +49,7 @@ export function AboutScreen({ onBack, onSupport }: AboutScreenProps) {
         <ListRow
           icon="mail-outline"
           title="Email"
-          subtitle="hello@northernalley.com"
+          subtitle="info@Northernalley.com"
           chevron
           onPress={openEmail}
         />

@@ -31,6 +31,12 @@ export default async function handler(req, res) {
   if (process.env.NODE_ENV === 'production' && /^(sk|rk)_test_/.test(process.env.STRIPE_SECRET_KEY || '')) {
     return res.status(503).json({ error: 'Live payments are not configured.' });
   }
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return res.status(503).json({ error: 'Stripe payments are not configured.' });
+  }
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    return res.status(503).json({ error: 'Stripe webhooks are not configured.' });
+  }
 
   const {
     privyUserId,

@@ -110,9 +110,8 @@ export function WalletScreen({ onBack, onAsset }: WalletScreenProps) {
             label="Send"
             variant="secondary"
             icon="arrow-up-outline"
-            onPress={() =>
-              Alert.alert('Send crypto', 'Sending crypto is not available yet.')
-            }
+            disabled
+            onPress={() => undefined}
           />
         </View>
       </View>

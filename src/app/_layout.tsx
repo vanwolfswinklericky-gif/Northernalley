@@ -21,6 +21,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef } from 'react';
 import { ActivityIndicator, StatusBar, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AppUpdateModal } from '@/components/AppUpdateModal';
 
 if (typeof (globalThis as any).crypto === 'undefined') (globalThis as any).crypto = {};
 if (typeof (globalThis as any).crypto.getRandomValues !== 'function') (globalThis as any).crypto.getRandomValues = Crypto.getRandomValues;
@@ -169,6 +170,7 @@ export default function RootLayout() {
           appId={process.env.EXPO_PUBLIC_PRIVY_APP_ID!}
           clientId={process.env.EXPO_PUBLIC_PRIVY_CLIENT_ID!}
         >
+          <AppUpdateModal />
           <RootNavigator />
         </PrivyProvider>
       </QueryClientProvider>

@@ -7,16 +7,24 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
+    "icon": "./assets/images/icon.png",
+    "web": {
+      "favicon": "./assets/images/favicon.png"
+    },
     "ios": {
       "bundleIdentifier": "com.northernalley.app",
+      "icon": "./assets/images/icon.png",
       "supportsTablet": true,
-      "associatedDomains": [
-        "webcredentials:your-domain.com"
-      ]
+      "infoPlist": {
+        "NSCameraUsageDescription": "NorthernAlley uses your camera to update your profile photo.",
+        "NSPhotoLibraryUsageDescription": "NorthernAlley uses your photo library so you can choose a profile photo.",
+        "NSFaceIDUsageDescription": "NorthernAlley uses Face ID to securely authorize your account."
+      }
     },
     "android": {
       "package": "com.northernalley.app",
       "googleServicesFile": "./google-services.json",
+      "permissions": ["android.permission.POST_NOTIFICATIONS"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/splash-logo.png",
         "backgroundColor": "#000000"
@@ -25,6 +33,21 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#7C3AED",
+          "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "NorthernAlley uses your photo library so you can choose a profile photo.",
+          "cameraPermission": "NorthernAlley uses your camera to update your profile photo."
+        }
+      ],
       [
         "expo-splash-screen",
         {
