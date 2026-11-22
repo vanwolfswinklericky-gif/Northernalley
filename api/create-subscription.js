@@ -179,7 +179,6 @@ export default async function handler(req, res) {
           addOns: selectedAddOns.join(','),
         },
       },
-      payment_method_collection: 'always',
       success_url: 'northernalley://(app)/success',
       cancel_url: 'northernalley://(app)/failure',
       metadata: {

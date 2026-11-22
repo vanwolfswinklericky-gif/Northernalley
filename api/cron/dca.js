@@ -7,6 +7,7 @@ import pool from '../_lib/db.js';
 import { executeSwapBatch } from '../_lib/execute-swap.js';
 import { calculateRebalanceSwaps } from '../_lib/rebalance.js';
 import { getSwapTransaction, resolveToken } from '../_lib/swap.js';
+import { refreshIndexBasket } from '../_lib/refresh-index-basket.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -44,6 +45,10 @@ async function releaseLock(lockId) {
 
 const DCA_LOCK_ID = 987654321;
 
+function isIndexRefreshDay(date) {
+  return date.getUTCDate() === 1 && [0, 3, 6, 9].includes(date.getUTCMonth());
+}
+
 export default async function handler(req, res) {
   const authHeader = req.headers['authorization'];
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -59,6 +64,18 @@ export default async function handler(req, res) {
 
   try {
     log('info', 'DCA cron started', { executionId });
+
+    if (isIndexRefreshDay(new Date())) {
+      try {
+        const result = await refreshIndexBasket();
+        log('info', 'Index basket refreshed', {
+          executionId,
+          usersProcessed: result.usersProcessed,
+        });
+      } catch (error) {
+        log('error', 'Index basket refresh failed', { executionId, error: error.message });
+      }
+    }
 
     // Fetch plans
     const { rows: plans } = await pool.query(

@@ -49,6 +49,7 @@ export function Button({
     <Pressable
       onPress={isDisabled ? undefined : onPress}
       disabled={isDisabled}
+      pointerEvents="box-only"
       style={({ pressed }) => [
         styles.base,
         { backgroundColor: bgColor },

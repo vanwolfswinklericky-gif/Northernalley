@@ -1,25 +1,25 @@
-import { PaymentScreen } from '@/screens/auth/PaymentScreen';
-import { usePlanStore } from '@/store/planStore';
 import { usePrivy } from '@privy-io/expo';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, Linking } from 'react-native';
+import { usePlanStore } from '@/store/planStore';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://northernalley.vercel.app';
 
-export default function AppPaymentRoute() {
-  const router = useRouter();
+export function useStripeCheckout() {
   const { user } = usePrivy();
   const { plan, basketId, amount, addOns } = usePlanStore();
   const email = user?.linked_accounts.find((account) => account.type === 'email')?.address;
   const [loading, setLoading] = useState(false);
+  const checkoutInProgress = useRef(false);
 
-  const handleConfirm = async () => {
-    if (!user?.id || !plan) {
+  const checkout = async () => {
+    if (checkoutInProgress.current) return;
+    if (!user?.id || !plan || !basketId || !amount) {
       Alert.alert('Missing Info', 'Please ensure you have selected a plan and basket.');
       return;
     }
 
+    checkoutInProgress.current = true;
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/create-subscription`, {
@@ -48,15 +48,10 @@ export default function AppPaymentRoute() {
         error instanceof Error ? error.message : 'Network error',
       );
     } finally {
+      checkoutInProgress.current = false;
       setLoading(false);
     }
   };
 
-  return (
-    <PaymentScreen
-      onBack={() => router.back()}
-      onSuccess={handleConfirm}
-      loading={loading}
-    />
-  );
+  return { checkout, loading };
 }

@@ -5,7 +5,7 @@ export default function FailureRoute() {
   const router = useRouter();
   return (
     <FailureScreen
-      onRetry={() => router.replace('/(auth)/payment')}
+      onRetry={() => router.replace('/(auth)/review')}
       onChangeAmount={() => router.replace('/(auth)/amount')}
     />
   );

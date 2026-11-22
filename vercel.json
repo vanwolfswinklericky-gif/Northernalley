@@ -2,8 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm ci --legacy-peer-deps",
   "crons": [
-    { "path": "/api/cron/dca", "schedule": "0 9 * * *" },
-    { "path": "/api/cron/rebalance-index", "schedule": "0 9 1 1,4,7,10 *" }
+    { "path": "/api/cron/dca", "schedule": "0 9 * * *" }
   ],
   "functions": {
     "api/**/*.js": {

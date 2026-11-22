@@ -22,9 +22,10 @@ const PLAN_PRICES: Record<string, number> = {
 interface ReviewScreenProps {
   onBack: () => void;
   onContinue: () => void;
+  loading?: boolean;
 }
 
-export function ReviewScreen({ onBack, onContinue }: ReviewScreenProps) {
+export function ReviewScreen({ onBack, onContinue, loading }: ReviewScreenProps) {
   const { selectedBasket, amount, frequency, plan } = usePlanStore();
   
   const grossAmount = amount ?? 0;
@@ -45,6 +46,7 @@ export function ReviewScreen({ onBack, onContinue }: ReviewScreenProps) {
             label={`🔒 Pay ${fmtEUR(totalDueToday)} with Stripe`} 
             onPress={onContinue} 
             variant="accent"
+            loading={loading}
           />
           <View style={styles.secureRow}>
             <Ionicons name="shield-checkmark" size={14} color={COLORS.up} />

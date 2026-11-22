@@ -6,7 +6,7 @@ export default function AppFailureRoute() {
 
   return (
     <FailureScreen
-      onRetry={() => router.replace('/(app)/payment')}
+      onRetry={() => router.replace('/(app)/review')}
       onChangeAmount={() => router.replace('/(app)/amount')}
     />
   );
