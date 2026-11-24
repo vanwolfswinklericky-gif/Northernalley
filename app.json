@@ -23,11 +23,12 @@
     },
     "android": {
       "package": "com.northernalley.app",
+      "icon": "./assets/images/icon.png",
       "googleServicesFile": "./google-services.json",
       "permissions": ["android.permission.POST_NOTIFICATIONS"],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/splash-logo.png",
-        "backgroundColor": "#000000"
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundColor": "#500697"
       }
     },
     "plugins": [

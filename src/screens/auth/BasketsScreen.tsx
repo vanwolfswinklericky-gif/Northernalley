@@ -17,7 +17,7 @@ interface BasketsScreenProps {
 
 export function BasketsScreen({ onBack, onContinue, onCreateCustom }: BasketsScreenProps) {
   const { data, isLoading, isError, error, refetch } = useBaskets();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedBasket, setSelectedBasket] = useState<Basket | null>(null);
   const addOns = usePlanStore((state) => state.addOns);
 
   if (isLoading) {
@@ -68,9 +68,8 @@ export function BasketsScreen({ onBack, onContinue, onCreateCustom }: BasketsScr
       footer={
         <Button
           label="Continue"
-          disabled={!selectedId}
+          disabled={!selectedBasket}
           onPress={() => {
-            const selectedBasket = baskets.find((basket) => basket.id === selectedId);
             if (selectedBasket) onContinue(selectedBasket);
           }}
         />
@@ -80,8 +79,8 @@ export function BasketsScreen({ onBack, onContinue, onCreateCustom }: BasketsScr
         <BasketCard
           key={basket.id}
           basket={basket}
-          selected={selectedId === basket.id}
-          onPress={() => setSelectedId(basket.id)}
+          selected={selectedBasket?.id === basket.id}
+          onPress={() => setSelectedBasket(basket)}
         />
       ))}
 

@@ -1,9 +1,10 @@
 // src/components/ui/FloatingTabBar.tsx
 
-import { COLORS, FLOATING_TAB_BAR_BOTTOM_OFFSET, RADIUS } from '@/constants/theme';
+import { COLORS, RADIUS, TAB_BAR_HEIGHT } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export const TABS = [
   { key: 'dashboard', label: 'Home', icon: 'home-outline', iconOn: 'home', route: '/(app)/(tabs)/dashboard' },
@@ -15,13 +16,14 @@ export const TABS = [
 export function FloatingTabBar() {
   const router = useRouter();
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
 
   // Determine which tab is currently active based on the route
   const activeKey = TABS.find((t) => pathname.includes(t.key))?.key || 'dashboard';
 
   return (
-    <View style={[styles.wrap, { bottom: FLOATING_TAB_BAR_BOTTOM_OFFSET }]} pointerEvents="box-none">
-      <View style={styles.bar}>
+    <View style={styles.wrap} pointerEvents="box-none">
+      <View style={[styles.bar, { height: TAB_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom }]}>
         {TABS.map((t) => {
           const on = activeKey === t.key;
           return (
@@ -47,28 +49,21 @@ export function FloatingTabBar() {
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    left: 16,
-    right: 16,
-    alignItems: 'center',
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 10,
   },
   bar: {
     width: '100%',
-    maxWidth: 520,
-    height: 72,
-    borderRadius: RADIUS.full,
+    height: TAB_BAR_HEIGHT,
     backgroundColor: COLORS.card,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
     gap: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: COLORS.line,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.line,
   },
   tab: {
     flex: 1,

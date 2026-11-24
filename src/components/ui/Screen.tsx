@@ -1,10 +1,10 @@
 // src/components/ui/Screen.tsx
 
-import { COLORS, FLOATING_TAB_BAR_BOTTOM_OFFSET, SPACING, TYPE } from '@/constants/theme';
+import { COLORS, SPACING, TAB_BAR_HEIGHT, TYPE } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ScreenProps {
   children: ReactNode;
@@ -30,6 +30,7 @@ export function Screen({
   noScroll,
 }: ScreenProps) {
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isTablet = width >= 768;
   const pad = isTablet ? 40 : 24;
   const maxW = isTablet ? 680 : undefined;
@@ -38,7 +39,7 @@ export function Screen({
     paddingHorizontal: pad,
     paddingTop: SPACING.s3,
     paddingBottom: tabs
-      ? 72 + 16 + 20 + SPACING.s4 + FLOATING_TAB_BAR_BOTTOM_OFFSET
+      ? TAB_BAR_HEIGHT + SPACING.s4 + insets.bottom
       : footer ? SPACING.s4 : SPACING.s5,
     maxWidth: maxW,
     width: '100%' as const,
@@ -48,7 +49,10 @@ export function Screen({
   const showNav = !!(onBack || progress != null || right);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView
+      style={styles.safe}
+      edges={tabs ? ['top', 'left', 'right'] : ['top', 'left', 'right', 'bottom']}
+    >
       <View style={styles.root}>
         {showNav && (
           <View style={[styles.nav, { maxWidth: maxW, alignSelf: 'center', width: '100%' }]}>
