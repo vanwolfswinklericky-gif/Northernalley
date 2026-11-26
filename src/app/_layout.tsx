@@ -18,10 +18,12 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import type { ReactNode } from 'react';
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, StatusBar, View } from 'react-native';
+import { ActivityIndicator, AppState, StatusBar, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppUpdateModal } from '@/components/AppUpdateModal';
+import { usePortfolioStore } from '@/store/portfolioStore';
 
 if (typeof (globalThis as any).crypto === 'undefined') (globalThis as any).crypto = {};
 if (typeof (globalThis as any).crypto.getRandomValues !== 'function') (globalThis as any).crypto.getRandomValues = Crypto.getRandomValues;
@@ -33,6 +35,108 @@ SplashScreen.preventAutoHideAsync().catch((error) => {
 });
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 2, staleTime: 30_000 } } });
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://northernalley.vercel.app';
+const INACTIVITY_TIMEOUT_MS = 20 * 60 * 1000;
+
+async function clearRemotePushToken(privyUserId: string) {
+  try {
+    const response = await fetch(`${API_URL}/auth/signout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ privyUserId }),
+    });
+    if (!response.ok) {
+      console.warn(`Server-side sign-out failed (HTTP ${response.status}).`);
+    }
+  } catch (error) {
+    console.warn('Unable to clear the signed-out user push token:', error);
+  }
+}
+
+function InactivityLogout({ children }: { children: ReactNode }) {
+  const { user, logout } = usePrivy();
+  const resetPlan = usePlanStore((state) => state.reset);
+  const clearPortfolio = usePortfolioStore((state) => state.clear);
+  const lastActivityAtRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resetTimerRef = useRef<() => void>(() => {});
+  const isLoggingOutRef = useRef(false);
+
+  useEffect(() => {
+    const clearTimer = () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+
+    if (!user?.id) {
+      clearTimer();
+      lastActivityAtRef.current = 0;
+      isLoggingOutRef.current = false;
+      resetTimerRef.current = () => {};
+      return;
+    }
+
+    let active = true;
+    lastActivityAtRef.current = Date.now();
+    isLoggingOutRef.current = false;
+
+    function scheduleLogout() {
+      if (!active) return;
+      clearTimer();
+
+      const elapsed = Date.now() - lastActivityAtRef.current;
+      timerRef.current = setTimeout(() => {
+        const idleFor = Date.now() - lastActivityAtRef.current;
+        if (idleFor < INACTIVITY_TIMEOUT_MS) {
+          scheduleLogout();
+          return;
+        }
+        if (isLoggingOutRef.current) return;
+
+        isLoggingOutRef.current = true;
+        void (async () => {
+          try {
+            await logout();
+            resetPlan();
+            clearPortfolio();
+            void clearRemotePushToken(user.id);
+          } catch (error) {
+            console.error('Automatic inactivity sign-out failed:', error);
+            isLoggingOutRef.current = false;
+            lastActivityAtRef.current = Date.now();
+            scheduleLogout();
+          }
+        })();
+      }, Math.max(0, INACTIVITY_TIMEOUT_MS - elapsed));
+    }
+
+    resetTimerRef.current = scheduleLogout;
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') scheduleLogout();
+    });
+    scheduleLogout();
+
+    return () => {
+      active = false;
+      clearTimer();
+      appStateSubscription.remove();
+      resetTimerRef.current = () => {};
+    };
+  }, [user?.id, logout, resetPlan, clearPortfolio]);
+
+  const recordActivity = () => {
+    if (!user?.id || isLoggingOutRef.current) return;
+    lastActivityAtRef.current = Date.now();
+    resetTimerRef.current();
+  };
+
+  return (
+    <View style={{ flex: 1 }} onTouchStart={recordActivity}>
+      {children}
+    </View>
+  );
+}
 
 function RootNavigator() {
   const { user, isReady } = usePrivy();
@@ -170,8 +274,10 @@ export default function RootLayout() {
           appId={process.env.EXPO_PUBLIC_PRIVY_APP_ID!}
           clientId={process.env.EXPO_PUBLIC_PRIVY_CLIENT_ID!}
         >
-          <AppUpdateModal />
-          <RootNavigator />
+          <InactivityLogout>
+            <AppUpdateModal />
+            <RootNavigator />
+          </InactivityLogout>
         </PrivyProvider>
       </QueryClientProvider>
     </SafeAreaProvider>
