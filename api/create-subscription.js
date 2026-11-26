@@ -169,9 +169,8 @@ export default async function handler(req, res) {
     const session = await stripe.checkout.sessions.create({
       customer: customer.id,
       mode: 'subscription',
-      line_items: recurring_items,
+      line_items: [...recurring_items, ...one_time_items],
       subscription_data: {
-        add_invoice_items: one_time_items,
         metadata: {
           privyUserId,
           plan,

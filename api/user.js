@@ -21,12 +21,28 @@ export default async function handler(req, res) {
   // ==========================================
   if (pathname.includes('upload-avatar')) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-    
+
+    const contentType = String(req.headers['content-type'] || '')
+      .split(';', 1)[0]
+      .toLowerCase();
+    const allowedImageTypes = new Set([
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/heic',
+      'image/heif',
+      'image/avif',
+    ]);
+    if (!allowedImageTypes.has(contentType)) {
+      return res.status(415).json({ error: 'Please upload a JPEG, PNG, WebP, HEIC, or AVIF image.' });
+    }
+
     try {
-      const filename = `avatar-${Date.now()}.jpg`;
+      const filename = `avatar-${Date.now()}`;
       const blob = await put(filename, req, {
         access: 'public',
         token: process.env.BLOB_READ_WRITE_TOKEN,
+        contentType,
       });
       return res.status(200).json({ url: blob.url });
     } catch (error) {

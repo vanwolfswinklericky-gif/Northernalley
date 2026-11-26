@@ -7,6 +7,8 @@ import { TextInput } from '@/components/ui/TextInput';
 import { COLORS, RADIUS, SPACING } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { usePrivy } from '@privy-io/expo';
+import { File } from 'expo-file-system';
+import { fetch as expoFetch } from 'expo/fetch';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -36,28 +38,48 @@ export function ProfileScreen({ onBack, onSignOut }: any) {
   }, [user]);
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-    });
-    if (!result.canceled && result.assets[0].uri) {
-      await uploadImage(result.assets[0].uri);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
+      if (!result.canceled) {
+        await uploadImage(result.assets[0]);
+      }
+    } catch (error) {
+      console.error('Unable to select profile image:', error);
+      Alert.alert(
+        'Image selection failed',
+        error instanceof Error ? error.message : 'Please try selecting the image again.',
+      );
     }
   };
 
-  const uploadImage = async (uri: string) => {
+  const uploadImage = async (asset: ImagePicker.ImagePickerAsset) => {
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', { uri, name: 'avatar.jpg', type: 'image/jpeg' } as any);
-      const res = await fetch(`${API_URL}/api/upload-avatar`, { method: 'POST', body: formData });
-      const data = await res.json();
-      if (data.url) setAvatarUrl(data.url);
-      else throw new Error('Upload failed');
-    } catch {
-      Alert.alert('Error', 'Failed to upload image.');
+      const file = new File(asset.uri);
+      const res = await expoFetch(`${API_URL}/api/upload-avatar`, {
+        method: 'POST',
+        headers: { 'Content-Type': file.type || asset.mimeType || 'image/jpeg' },
+        body: file,
+      });
+      const data: { url?: string; error?: string } = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || `Image upload failed (HTTP ${res.status}).`);
+      }
+      if (!data.url) {
+        throw new Error('The server did not return an image URL.');
+      }
+      setAvatarUrl(data.url);
+    } catch (error) {
+      console.error('Unable to upload profile image:', error);
+      Alert.alert(
+        'Image upload failed',
+        error instanceof Error ? error.message : 'Please try uploading the image again.',
+      );
     } finally {
       setUploading(false);
     }

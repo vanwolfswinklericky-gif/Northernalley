@@ -345,7 +345,12 @@ export function SettingsScreen({
       <Text style={styles.version}>Version 1.0.0 (Production)</Text>
 
       {/* Currency Modal */}
-      <Modal visible={showCurrencyModal} animationType="slide" presentationStyle="pageSheet">
+      <Modal
+        visible={showCurrencyModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowCurrencyModal(false)}
+      >
         <SafeAreaView style={styles.modalSafe}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Select Currency</Text>
