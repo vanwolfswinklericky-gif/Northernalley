@@ -68,16 +68,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    const customer = await stripe.customers.create({
-      email,
-      metadata: { privyUserId },
-    });
-
     const selectedAddOns = [];
     const depositFee = amount * DEPOSIT_FEE_RATE;
 
     // --- FREE PLAN (One-time payment + Save Card for DCA) ---
     if (plan === 'free') {
+      const customer = await stripe.customers.create({
+        email,
+        metadata: { privyUserId },
+      });
       const one_time_items = [
         {
           price_data: {
@@ -133,18 +132,21 @@ export default async function handler(req, res) {
     if (!priceId) return res.status(400).json({ error: `Invalid plan: ${plan}` });
 
     const recurring_items = [{ price: priceId, quantity: 1 }];
+    const isWeeklyDcaIncluded = plan === 'pro' || plan === 'premium';
+    const requestedAddOns = {
+      extraBasket: addOns.extraBasket === true,
+      weeklyDca: addOns.weeklyDca === true && !isWeeklyDcaIncluded,
+      prioritySupport: addOns.prioritySupport === true,
+    };
 
-    if (addOns.extraBasket && ADDON_PRICES.extraBasket) {
-      recurring_items.push({ price: ADDON_PRICES.extraBasket, quantity: 1 });
-      selectedAddOns.push('extraBasket');
-    }
-    if (addOns.weeklyDca && ADDON_PRICES.weeklyDca) {
-      recurring_items.push({ price: ADDON_PRICES.weeklyDca, quantity: 1 });
-      selectedAddOns.push('weeklyDca');
-    }
-    if (addOns.prioritySupport && ADDON_PRICES.prioritySupport) {
-      recurring_items.push({ price: ADDON_PRICES.prioritySupport, quantity: 1 });
-      selectedAddOns.push('prioritySupport');
+    for (const [addOn, isSelected] of Object.entries(requestedAddOns)) {
+      if (!isSelected) continue;
+      const price = ADDON_PRICES[addOn];
+      if (!price) {
+        return res.status(503).json({ error: `Stripe price is not configured for the ${addOn} add-on.` });
+      }
+      recurring_items.push({ price, quantity: 1 });
+      selectedAddOns.push(addOn);
     }
 
     const one_time_items = [
@@ -165,6 +167,11 @@ export default async function handler(req, res) {
         quantity: 1,
       },
     ];
+
+    const customer = await stripe.customers.create({
+      email,
+      metadata: { privyUserId },
+    });
 
     const session = await stripe.checkout.sessions.create({
       customer: customer.id,

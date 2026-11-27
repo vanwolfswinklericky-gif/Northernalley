@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Container } from '@/components/ui/Container';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS, RADIUS } from '@/constants/theme';
+import { getChargedAddOns } from '@/constants/billing';
 import { usePlanStore } from '@/store/planStore';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
@@ -26,13 +27,15 @@ interface ReviewScreenProps {
 }
 
 export function ReviewScreen({ onBack, onContinue, loading }: ReviewScreenProps) {
-  const { selectedBasket, amount, frequency, plan } = usePlanStore();
+  const { selectedBasket, amount, frequency, plan, addOns } = usePlanStore();
   
   const grossAmount = amount ?? 0;
   const depositFee = grossAmount * DEPOSIT_FEE_RATE;
   const planName = plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : 'Starter';
   const subscriptionPrice = PLAN_PRICES[plan || 'starter'] || 0;
-  const totalDueToday = subscriptionPrice + grossAmount + depositFee;
+  const chargedAddOns = getChargedAddOns(plan, addOns);
+  const addOnTotal = chargedAddOns.reduce((total, addOn) => total + addOn.price, 0);
+  const totalDueToday = subscriptionPrice + addOnTotal + grossAmount + depositFee;
 
   return (
     <Screen
@@ -117,6 +120,12 @@ export function ReviewScreen({ onBack, onContinue, loading }: ReviewScreenProps)
           <Text style={styles.summaryLabel}>Subscription (monthly)</Text>
           <Text style={styles.summaryValue}>{fmtEUR(subscriptionPrice)}</Text>
         </View>
+        {chargedAddOns.map((addOn) => (
+          <View key={addOn.key} style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>{addOn.name} (monthly)</Text>
+            <Text style={styles.summaryValue}>{fmtEUR(addOn.price)}</Text>
+          </View>
+        ))}
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Deposit (monthly)</Text>
           <Text style={styles.summaryValue}>{fmtEUR(grossAmount)}</Text>

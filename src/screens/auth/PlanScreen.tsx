@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Container } from '@/components/ui/Container';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS, RADIUS, SPACING } from '@/constants/theme';
+import { ADD_ON_PRICES, getChargedAddOnsPrice } from '@/constants/billing';
 import { usePlanStore } from '@/store/planStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
@@ -118,11 +119,7 @@ export function PlanScreen({ onBack, onContinue }: PlanScreenProps) {
   const isWeeklyDcaIncluded = selected === 'pro' || selected === 'premium';
   const isFree = selected === 'free';
   
-  const addOnPrice = 
-    (!isFree && addOns.extraBasket ? 4.99 : 0) + 
-    (!isWeeklyDcaIncluded && !isFree && addOns.weeklyDca ? 7.99 : 0) + 
-    (!isFree && addOns.prioritySupport ? 9.99 : 0);
-    
+  const addOnPrice = getChargedAddOnsPrice(selected, addOns);
   const totalPrice = basePrice + addOnPrice;
 
   return (
@@ -191,7 +188,7 @@ export function PlanScreen({ onBack, onContinue }: PlanScreenProps) {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.addOnText}>Extra Basket</Text>
                       </View>
-                      <Text style={styles.addOnPriceText}>+€4.99</Text>
+                      <Text style={styles.addOnPriceText}>+€{ADD_ON_PRICES.extraBasket.toFixed(2)}</Text>
                       <View style={[styles.plusBtn, addOns.extraBasket && styles.plusBtnActive]}>
                         <Ionicons name={addOns.extraBasket ? "checkmark" : "add"} size={14} color={addOns.extraBasket ? "#fff" : COLORS.accent} />
                       </View>
@@ -213,7 +210,7 @@ export function PlanScreen({ onBack, onContinue }: PlanScreenProps) {
                       </View>
                       {!isWeeklyDcaIncluded ? (
                         <>
-                          <Text style={styles.addOnPriceText}>+€7.99</Text>
+                          <Text style={styles.addOnPriceText}>+€{ADD_ON_PRICES.weeklyDca.toFixed(2)}</Text>
                           <View style={[styles.plusBtn, addOns.weeklyDca && styles.plusBtnActive]}>
                             <Ionicons name={addOns.weeklyDca ? "checkmark" : "add"} size={14} color={addOns.weeklyDca ? "#fff" : COLORS.accent} />
                           </View>
@@ -230,7 +227,7 @@ export function PlanScreen({ onBack, onContinue }: PlanScreenProps) {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.addOnText}>Priority Support</Text>
                       </View>
-                      <Text style={styles.addOnPriceText}>+€9.99</Text>
+                      <Text style={styles.addOnPriceText}>+€{ADD_ON_PRICES.prioritySupport.toFixed(2)}</Text>
                       <View style={[styles.plusBtn, addOns.prioritySupport && styles.plusBtnActive]}>
                         <Ionicons name={addOns.prioritySupport ? "checkmark" : "add"} size={14} color={addOns.prioritySupport ? "#fff" : COLORS.accent} />
                       </View>

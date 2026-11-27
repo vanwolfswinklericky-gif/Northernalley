@@ -128,7 +128,7 @@ export function LoginScreen({
         onPress={() =>
           Alert.alert(
             'Password reset',
-            'Please contact info@Northernalley.com to reset your password.',
+            'Please contact info@northernalley.com to reset your password.',
           )
         }
         style={styles.forgot}

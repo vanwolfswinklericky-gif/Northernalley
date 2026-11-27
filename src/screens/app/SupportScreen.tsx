@@ -34,11 +34,11 @@ const FAQS = [
   },
   {
     q: 'How do I cancel or change my plan?',
-    a: 'Open Settings and tap Payment Method to open Stripe billing for an active paid subscription. You can also contact us at info@Northernalley.com if you need help confirming a cancellation or selecting another plan. Canceling a plan stops the subscription according to Stripe’s billing status; review the billing portal for the effective end date. Plan features and basket limits may change when the new plan becomes active.',
+    a: 'Open Settings and tap Payment Method to open Stripe billing for an active paid subscription. You can also contact us at info@northernalley.com if you need help confirming a cancellation or selecting another plan. Canceling a plan stops the subscription according to Stripe’s billing status; review the billing portal for the effective end date. Plan features and basket limits may change when the new plan becomes active.',
   },
   {
     q: 'Why did a payment fail?',
-    a: 'A payment can fail due to insufficient funds, an expired or declined card, an incorrect card detail, an additional verification requirement, or a block by your bank. Confirm that the card is valid, allow the purchase in your banking app if prompted, or update the payment method through Settings > Payment Method. If the charge remains pending or was taken twice, contact info@Northernalley.com with the billing date and amount.',
+    a: 'A payment can fail due to insufficient funds, an expired or declined card, an incorrect card detail, an additional verification requirement, or a block by your bank. Confirm that the card is valid, allow the purchase in your banking app if prompted, or update the payment method through Settings > Payment Method. If the charge remains pending or was taken twice, contact info@northernalley.com with the billing date and amount.',
   },
   {
     q: 'How do baskets and custom baskets work?',
@@ -50,7 +50,7 @@ const FAQS = [
   },
   {
     q: 'Can I send or withdraw crypto from the app?',
-    a: 'The Wallet screen currently has a Send button, but sending crypto is not available yet in the app. Do not rely on the app for an external transfer, and do not send funds to a new or unverified wallet until you contact support. Some network fees or transfer limitations may be handled outside NorthernAlley. Email info@Northernalley.com before moving significant funds or requesting help with a transfer.',
+    a: 'The Wallet screen currently has a Send button, but sending crypto is not available yet in the app. Do not rely on the app for an external transfer, and do not send funds to a new or unverified wallet until you contact support. Some network fees or transfer limitations may be handled outside NorthernAlley. Email info@northernalley.com before moving significant funds or requesting help with a transfer.',
   },
   {
     q: 'Can I add crypto directly from an exchange or another wallet?',
@@ -70,7 +70,7 @@ const FAQS = [
   },
   {
     q: 'I forgot my wallet recovery passcode. Can support reset it?',
-    a: 'NorthernAlley cannot view or retrieve your passcode. Sign in to your account and try any passkey or other Privy recovery method already linked to your account. If no backup method is available, the wallet may be unrecoverable. Email info@Northernalley.com for guidance, but never send your recovery passcode or seed phrase by email.',
+    a: 'NorthernAlley cannot view or retrieve your passcode. Sign in to your account and try any passkey or other Privy recovery method already linked to your account. If no backup method is available, the wallet may be unrecoverable. Email info@northernalley.com for guidance, but never send your recovery passcode or seed phrase by email.',
   },
   {
     q: 'How do Face ID or fingerprint login work?',
@@ -99,12 +99,12 @@ export function SupportScreen({ onBack }: SupportScreenProps) {
 
   const handleContactSupport = async () => {
     try {
-      const url = 'mailto:info@Northernalley.com?subject=NorthernAlley%20Support%20Request';
+      const url = 'mailto:info@northernalley.com?subject=NorthernAlley%20Support%20Request';
       if (!(await Linking.canOpenURL(url))) throw new Error('No email app is available.');
       await Linking.openURL(url);
     } catch (error) {
       console.error('Unable to open the support email:', error);
-      Alert.alert('Email unavailable', 'Please email info@Northernalley.com.');
+      Alert.alert('Email unavailable', 'Please email info@northernalley.com.');
     }
   };
 
@@ -145,7 +145,7 @@ export function SupportScreen({ onBack }: SupportScreenProps) {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.contactTitle}>Contact Support</Text>
-          <Text style={styles.contactSub}>Email info@Northernalley.com</Text>
+          <Text style={styles.contactSub}>Email info@northernalley.com</Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color={COLORS.t3} />
       </Pressable>
