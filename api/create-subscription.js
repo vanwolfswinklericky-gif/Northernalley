@@ -136,7 +136,7 @@ export default async function handler(req, res) {
     const requestedAddOns = {
       extraBasket: addOns.extraBasket === true,
       weeklyDca: addOns.weeklyDca === true && !isWeeklyDcaIncluded,
-      prioritySupport: addOns.prioritySupport === true,
+      prioritySupport: addOns.prioritySupport === true && plan !== 'pro' && plan !== 'premium',
     };
 
     for (const [addOn, isSelected] of Object.entries(requestedAddOns)) {

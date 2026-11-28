@@ -6,6 +6,7 @@ import { FloatingTabBar } from '@/components/ui/FloatingTabBar';
 import { ListRow } from '@/components/ui/ListRow';
 import { Screen } from '@/components/ui/Screen';
 import { SectionHeader } from '@/components/ui/SectionHeader';
+import { getSupportAccess } from '@/constants/billing';
 import { COLORS, RADIUS, SPACING } from '@/constants/theme';
 import { useExchangeRates } from '@/hooks/useExchangeRates';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -13,13 +14,13 @@ import { registerForPushNotifications } from '@/lib/notifications';
 import { usePlanStore } from '@/store/planStore';
 import { usePortfolioStore } from '@/store/portfolioStore';
 import { Ionicons } from '@expo/vector-icons';
-import * as Notifications from 'expo-notifications';
 import {
   getAllUserEmbeddedEthereumWallets,
   useMfaEnrollment,
   usePrivy,
 } from '@privy-io/expo';
 import { useLinkWithPasskey } from '@privy-io/expo/passkey';
+import * as Notifications from 'expo-notifications';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, FlatList, Image, Linking, Modal,
@@ -43,10 +44,12 @@ export function SettingsScreen({
   onProfile, onWallet, onRecoveryPasscode, onAbout, onPolicies, onPlan, onSupport, onSignOut,
 }: SettingsScreenProps) {
   const { user, logout } = usePrivy();
-  const { plan, status } = useSubscription();
+  const { plan, status, addOns } = useSubscription();
   const { rates, isLoading: ratesLoading, currency } = useExchangeRates();
   const { setCurrency, reset: clearPlan } = usePlanStore();
   const clearPortfolio = usePortfolioStore((s) => s.clear);
+
+  const support = getSupportAccess(plan, status, addOns);
 
   const { linkWithPasskey } = useLinkWithPasskey();
   const { initMfaEnrollment, submitMfaEnrollment, unenrollMfa } = useMfaEnrollment();
@@ -335,7 +338,19 @@ export function SettingsScreen({
       <Container flush>
         <ListRow icon="information-circle-outline" title="About NorthernAlley" chevron onPress={onAbout} iconColor={COLORS.accent} />
         <ListRow icon="document-text-outline" title="Policies" chevron onPress={onPolicies} iconColor={COLORS.accent} />
-        <ListRow icon="help-circle-outline" title="Help & Support" chevron onPress={onSupport} iconColor={COLORS.accent} last />
+        
+        {/* DYNAMIC PRIORITY SUPPORT ROW */}
+        <ListRow 
+          icon={support.isPriority ? "star" : "help-circle-outline"} 
+          title={support.label} 
+          subtitle={support.isPriority
+            ? `Fast-tracked (${support.responseHours}h response)`
+            : "Standard (48h response)"}
+          chevron 
+          onPress={onSupport} 
+          iconColor={COLORS.accent} 
+          last 
+        />
       </Container>
 
       <View style={{ marginTop: 32 }}>

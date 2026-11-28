@@ -57,6 +57,14 @@ export default async function handler(req, res) {
       }
 
       const row = result.rows[0];
+      const rawAddOns = row.add_ons || '';
+      const addOns = {
+        extraBasket: rawAddOns.includes('extraBasket'),
+        weeklyDca: rawAddOns.includes('weeklyDca'),
+        customBasket: rawAddOns.includes('customBasket'),
+        prioritySupport: rawAddOns.includes('prioritySupport'),
+      };
+
       return res.status(200).json({
         user: {
           id: row.id,
@@ -68,6 +76,7 @@ export default async function handler(req, res) {
           plan: row.plan,
           status: row.status,
           currentPeriodEnd: row.current_period_end,
+          addOns,
         } : null,
       });
     } catch (err) {

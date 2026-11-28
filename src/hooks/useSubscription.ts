@@ -1,6 +1,6 @@
 // src/hooks/useSubscription.ts
 
-import { Plan, useSubscriptionStore } from '@/store/subscriptionStore';
+import { Plan, SubscriptionAddOns, useSubscriptionStore } from '@/store/subscriptionStore';
 import { usePrivy } from '@privy-io/expo';
 import { useEffect } from 'react';
 
@@ -8,7 +8,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://northernalley.vercel
 
 export function useSubscription() {
   const { user } = usePrivy();
-  const { plan, status, setSubscription, setLoading, isLoading } = useSubscriptionStore();
+  const { plan, status, addOns, setSubscription, setLoading, clear, isLoading } = useSubscriptionStore();
 
   useEffect(() => {
     if (!user?.id) return;
@@ -27,7 +27,10 @@ export function useSubscription() {
             plan: data.subscription.plan as Plan,
             status: data.subscription.status,
             currentPeriodEnd: data.subscription.currentPeriodEnd,
+            addOns: data.subscription.addOns as SubscriptionAddOns | undefined,
           });
+        } else if (!cancelled) {
+          clear();
         }
       } catch (err) {
         console.warn('Subscription fetch failed:', err);
@@ -39,7 +42,7 @@ export function useSubscription() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, setSubscription, setLoading]);
+  }, [user?.id, setSubscription, setLoading, clear]);
 
-  return { plan, status, isLoading };
+  return { plan, status, addOns, isLoading };
 }

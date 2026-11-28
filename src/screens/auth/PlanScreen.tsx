@@ -117,6 +117,7 @@ export function PlanScreen({ onBack, onContinue }: PlanScreenProps) {
   const basePrice = selectedPlanObj ? selectedPlanObj.price : 0;
   
   const isWeeklyDcaIncluded = selected === 'pro' || selected === 'premium';
+  const isPrioritySupportIncluded = selected === 'pro' || selected === 'premium';
   const isFree = selected === 'free';
   
   const addOnPrice = getChargedAddOnsPrice(selected, addOns);
@@ -221,16 +222,32 @@ export function PlanScreen({ onBack, onContinue }: PlanScreenProps) {
                     </Pressable>
 
                     <Pressable 
-                      style={[styles.inlineAddOnRow, addOns.prioritySupport && styles.inlineAddOnRowActive]} 
-                      onPress={() => toggleAddOn('prioritySupport')}
+                      style={[
+                        styles.inlineAddOnRow,
+                        isPrioritySupportIncluded && { opacity: 0.6, backgroundColor: COLORS.soft },
+                        !isPrioritySupportIncluded && addOns.prioritySupport && styles.inlineAddOnRowActive,
+                      ]}
+                      onPress={() => !isPrioritySupportIncluded && toggleAddOn('prioritySupport')}
+                      disabled={isPrioritySupportIncluded}
                     >
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.addOnText}>Priority Support</Text>
+                        <Text style={[
+                          styles.addOnText,
+                          isPrioritySupportIncluded && { textDecorationLine: 'line-through', color: COLORS.t3 },
+                        ]}>
+                          Priority Support {isPrioritySupportIncluded && '(Included)'}
+                        </Text>
                       </View>
-                      <Text style={styles.addOnPriceText}>+€{ADD_ON_PRICES.prioritySupport.toFixed(2)}</Text>
-                      <View style={[styles.plusBtn, addOns.prioritySupport && styles.plusBtnActive]}>
-                        <Ionicons name={addOns.prioritySupport ? "checkmark" : "add"} size={14} color={addOns.prioritySupport ? "#fff" : COLORS.accent} />
-                      </View>
+                      {!isPrioritySupportIncluded ? (
+                        <>
+                          <Text style={styles.addOnPriceText}>+€{ADD_ON_PRICES.prioritySupport.toFixed(2)}</Text>
+                          <View style={[styles.plusBtn, addOns.prioritySupport && styles.plusBtnActive]}>
+                            <Ionicons name={addOns.prioritySupport ? "checkmark" : "add"} size={14} color={addOns.prioritySupport ? "#fff" : COLORS.accent} />
+                          </View>
+                        </>
+                      ) : (
+                        <Ionicons name="checkmark-circle" size={20} color={COLORS.up} />
+                      )}
                     </Pressable>
                   </View>
                 )}

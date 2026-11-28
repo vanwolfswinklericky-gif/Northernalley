@@ -3,6 +3,8 @@
 import { Container } from '@/components/ui/Container';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS, RADIUS } from '@/constants/theme';
+import { getSupportAccess } from '@/constants/billing';
+import { useSubscription } from '@/hooks/useSubscription';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -97,9 +99,17 @@ interface SupportScreenProps {
 export function SupportScreen({ onBack }: SupportScreenProps) {
   const [expanded, setExpanded] = useState<number | null>(null);
 
+  // 1. Check for Priority Support (Premium OR Add-on)
+  const { plan, status, addOns } = useSubscription();
+  const support = getSupportAccess(plan, status, addOns);
+
   const handleContactSupport = async () => {
     try {
-      const url = 'mailto:info@northernalley.com?subject=NorthernAlley%20Support%20Request';
+      // 2. Add [PRIORITY] to the subject if they have fast support
+      const subjectPrefix = support.emailTag ? `${support.emailTag} ` : '';
+      const subject = encodeURIComponent(`${subjectPrefix}NorthernAlley Support Request`);
+      const url = `mailto:info@northernalley.com?subject=${subject}`;
+      
       if (!(await Linking.canOpenURL(url))) throw new Error('No email app is available.');
       await Linking.openURL(url);
     } catch (error) {
@@ -139,13 +149,23 @@ export function SupportScreen({ onBack }: SupportScreenProps) {
         Still need help?
       </Text>
 
-      <Pressable style={styles.contactCard} onPress={handleContactSupport}>
-        <View style={styles.contactIcon}>
-          <Ionicons name="mail" size={24} color="#fff" />
+      {/* 3. Dynamic Contact Card based on Priority Status */}
+      <Pressable 
+        style={[styles.contactCard, support.isPriority && styles.contactCardPriority]} 
+        onPress={handleContactSupport}
+      >
+        <View style={[styles.contactIcon, support.isPriority && { backgroundColor: COLORS.up }]}>
+          <Ionicons name={support.isPriority ? "star" : "mail"} size={24} color="#fff" />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.contactTitle}>Contact Support</Text>
-          <Text style={styles.contactSub}>Email info@northernalley.com</Text>
+          <Text style={styles.contactTitle}>
+            {support.label}
+          </Text>
+          <Text style={styles.contactSub}>
+            {support.isPriority
+              ? `Fast-tracked: We reply within ${support.responseHours} hours`
+              : 'Standard: We reply within 48 hours'}
+          </Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color={COLORS.t3} />
       </Pressable>
@@ -198,6 +218,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accentSoft,
     borderWidth: 1,
     borderColor: COLORS.accentMedium,
+  },
+  contactCardPriority: {
+    backgroundColor: COLORS.upSoft, // Green tint for priority users
+    borderColor: COLORS.up,
   },
   contactIcon: {
     width: 48,
