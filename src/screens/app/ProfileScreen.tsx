@@ -16,7 +16,7 @@ import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } fr
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://northernalley.vercel.app';
 
 export function ProfileScreen({ onBack, onSignOut }: any) {
-  const { user, logout } = usePrivy();
+  const { user, logout, getAccessToken } = usePrivy();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -60,10 +60,18 @@ export function ProfileScreen({ onBack, onSignOut }: any) {
   const uploadImage = async (asset: ImagePicker.ImagePickerAsset) => {
     setUploading(true);
     try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error('Please sign in again before uploading a profile image.');
+      }
+
       const file = new File(asset.uri);
       const res = await expoFetch(`${API_URL}/api/upload-avatar`, {
         method: 'POST',
-        headers: { 'Content-Type': file.type || asset.mimeType || 'image/jpeg' },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': file.type || asset.mimeType || 'image/jpeg',
+        },
         body: file,
       });
       const data: { url?: string; error?: string } = await res.json();

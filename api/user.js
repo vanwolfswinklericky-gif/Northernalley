@@ -1,5 +1,6 @@
 // api/user.js
 import { put } from '@vercel/blob';
+import { verifyPrivyUser } from './_lib/auth-guard.js';
 import { pool } from './_lib/db.js';
 
 // Disable body parsing so we can handle multipart/form-data for uploads
@@ -22,27 +23,35 @@ export default async function handler(req, res) {
   if (pathname.includes('upload-avatar')) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+    let privyUserId;
+    try {
+      privyUserId = await verifyPrivyUser(req);
+    } catch {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     const contentType = String(req.headers['content-type'] || '')
       .split(';', 1)[0]
       .toLowerCase();
-    const allowedImageTypes = new Set([
-      'image/jpeg',
-      'image/png',
-      'image/webp',
-      'image/heic',
-      'image/heif',
-      'image/avif',
+    const imageExtensions = new Map([
+      ['image/jpeg', 'jpg'],
+      ['image/png', 'png'],
+      ['image/webp', 'webp'],
+      ['image/heic', 'heic'],
+      ['image/heif', 'heif'],
+      ['image/avif', 'avif'],
     ]);
-    if (!allowedImageTypes.has(contentType)) {
+    const extension = imageExtensions.get(contentType);
+    if (!extension) {
       return res.status(415).json({ error: 'Please upload a JPEG, PNG, WebP, HEIC, or AVIF image.' });
     }
 
     try {
-      const filename = `avatar-${Date.now()}`;
-      const blob = await put(filename, req, {
+      const blob = await put(`avatars/${privyUserId}.${extension}`, req, {
         access: 'public',
         token: process.env.BLOB_READ_WRITE_TOKEN,
         contentType,
+        addRandomSuffix: true,
       });
       return res.status(200).json({ url: blob.url });
     } catch (error) {

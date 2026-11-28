@@ -1,6 +1,7 @@
 // api/baskets.js
 
 import { parseUnits } from 'viem';
+import { verifyPrivyUser } from './_lib/auth-guard.js'; // <-- NEW IMPORT
 import { normalizeBasketWeights } from './_lib/basket-weights.js';
 import { pool } from './_lib/db.js';
 import { executeSwapBatch } from './_lib/execute-swap.js';
@@ -9,7 +10,7 @@ import { getSwapTransaction, resolveToken } from './_lib/swap.js';
 
 const WITHDRAWAL_FEE_RATE = 0.02;
 const DEPOSIT_FEE_RATE = 0.01;
-const USDC_DECIMALS = 6; // Base USDC uses 6 decimals
+const USDC_DECIMALS = 6;
 const MIN_SWAP_USD = 1;
 
 export default async function handler(req, res) {
@@ -18,8 +19,13 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { privyUserId } = req.query;
-  if (!privyUserId) return res.status(400).json({ error: 'privyUserId is required' });
+  // 1. ENFORCE SERVER-SIDE AUTH
+  let privyUserId;
+  try {
+    privyUserId = await verifyPrivyUser(req);
+  } catch (err) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid or missing token' });
+  }
 
   try {
     const userResult = await pool.query(
@@ -76,11 +82,16 @@ export default async function handler(req, res) {
       // --- WITHDRAWAL ---
       if (body.action === 'withdraw') {
         const { amount, destinationAddress } = body;
-        if (!amount || !destinationAddress) {
-          return res.status(400).json({ error: 'amount and destinationAddress are required' });
+        
+        // 2. VALIDATE INPUT
+        if (typeof amount !== 'number' || amount <= 0) {
+          return res.status(400).json({ error: 'Invalid amount' });
+        }
+        if (typeof destinationAddress !== 'string' || destinationAddress.length < 10) {
+          return res.status(400).json({ error: 'Invalid destination address' });
         }
 
-        const grossAmount = Number(amount);
+        const grossAmount = amount;
         const withdrawalFee = grossAmount * WITHDRAWAL_FEE_RATE;
         const netAmountToSend = grossAmount - withdrawalFee;
 
@@ -124,11 +135,14 @@ export default async function handler(req, res) {
         const { basketId, amount } = body;
         const grossAmount = Number(amount);
 
-        if (!basketId || grossAmount <= 0) {
-          return res.status(400).json({ error: 'basketId and amount are required' });
+        // 2. VALIDATE INPUT
+        if (typeof basketId !== 'string' || !basketId) {
+          return res.status(400).json({ error: 'Invalid basket ID' });
+        }
+        if (isNaN(grossAmount) || grossAmount <= 0) {
+          return res.status(400).json({ error: 'Invalid amount' });
         }
 
-        // 1. Fetch basket from DB
         const { rows: basketRows } = await pool.query(
           `SELECT slug, coins FROM baskets WHERE id = $1`,
           [basketId]
@@ -148,7 +162,6 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'Invalid basket data' });
         }
 
-        // 2. Calculate fee and allocate
         const depositFee = grossAmount * DEPOSIT_FEE_RATE;
         const netAmount = grossAmount - depositFee;
 
@@ -156,7 +169,6 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'Amount too small after fees' });
         }
 
-        // 3. Resolve USDC token
         let usdc;
         try {
           usdc = await resolveToken('USDC');
@@ -164,7 +176,6 @@ export default async function handler(req, res) {
           return res.status(500).json({ error: 'Token resolution failed' });
         }
 
-        // 4. Build swaps (Bignumber Fix)
         const swaps = [];
         for (const asset of basketAssets) {
           const amountString = (netAmount * asset.weight).toFixed(USDC_DECIMALS);
@@ -192,7 +203,6 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'Amount too small to execute any swaps' });
         }
 
-        // 5. Execute swaps
         const executionId = `instant-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         const { executed, failed } = await executeSwapBatch(swaps, {
           userId,
@@ -200,7 +210,6 @@ export default async function handler(req, res) {
           walletAddress,
         });
 
-        // 6. Record transaction
         const { rows } = await pool.query(
           `INSERT INTO transactions (user_id, type, amount_usd, status, metadata)
            VALUES ($1, 'instant_buy', $2, $3, $4)
@@ -240,11 +249,16 @@ export default async function handler(req, res) {
 
       // --- CREATE CUSTOM BASKET ---
       const { name, coins } = body;
-      if (!name || !Array.isArray(coins) || coins.length === 0) {
-        return res.status(400).json({ error: 'name and coins are required' });
+      
+      // 2. VALIDATE INPUT
+      if (typeof name !== 'string' || name.trim().length < 2) {
+        return res.status(400).json({ error: 'Basket name must be at least 2 characters' });
+      }
+      if (!Array.isArray(coins) || coins.length === 0) {
+        return res.status(400).json({ error: 'Coins are required' });
       }
 
-      const total = coins.reduce((sum, c) => sum + (c.weight ?? 0), 0);
+      const total = coins.reduce((sum, c) => sum + (Number(c.weight) || 0), 0);
       if (Math.abs(total - 1.0) > 0.01) {
         return res.status(400).json({ error: 'Coin weights must sum to 1.0' });
       }
@@ -264,7 +278,7 @@ export default async function handler(req, res) {
         `INSERT INTO baskets (name, description, type, owner_id, coins)
          VALUES ($1, $2, 'custom', $3, $4)
          RETURNING id, name, description, type, coins`,
-        [name, 'Custom basket', userId, JSON.stringify(coins)]
+        [name.trim(), 'Custom basket', userId, JSON.stringify(coins)]
       );
 
       return res.status(201).json({ basket: inserted.rows[0] });
@@ -290,6 +304,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     console.error('Baskets/Withdrawal/InstantBuy error:', err);
-    return res.status(500).json({ error: err.message });
+    // 3. TRIM API RESPONSE (Don't leak SQL errors to frontend)
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
